@@ -1,0 +1,163 @@
+import type { DifficultyProfile } from './levels';
+import type { PowerUp, ActiveEffects } from './powerups';
+
+export type { DifficultyProfile } from './levels';
+export type { PowerUp, ActiveEffects } from './powerups';
+
+export interface Vec2 { x: number; y: number }
+
+export interface Ball {
+  id:     number;
+  x:      number;
+  y:      number;
+  vx:     number;
+  vy:     number;
+  radius: number;
+  tier:   number;   // 3 = largest, 1 = smallest, 0 = tiny
+  color:  string;
+  glowColor: string;
+  flash:  number;
+  rotation: number;
+  rotSpeed: number;
+  homing: boolean;
+  /** recent positions for motion trail */
+  trail: { x: number; y: number }[];
+}
+
+export interface Hook {
+  id:     number;
+  x:      number;
+  tipY:   number;
+  baseY:  number;
+  active: boolean;
+  spawnScale: number;
+  width: number;
+  color: string;
+}
+
+export interface Player {
+  x:       number;
+  y:       number;
+  lives:   number;
+  invincible: number;
+  squash: number;
+  /** Charge level 0-1 for super shot */
+  charge: number;
+}
+
+export type GamePhase = 'title' | 'onboarding' | 'playing' | 'dead' | 'levelup' | 'gameover';
+
+export interface OnboardingStep {
+  id: number;
+  title: string;
+  text: string;
+  highlight?: 'player' | 'hook' | 'ball' | 'lives' | 'score';
+  action?: 'move' | 'shoot' | 'wait';
+}
+
+export const ONBOARDING_STEPS: OnboardingStep[] = [
+  { id: 1, title: 'OBJECTIF', text: 'Fais éclater toutes les orbes rebondissantes pour terminer le niveau.', action: 'wait' },
+  { id: 2, title: 'DÉPLACEMENT', text: 'Utilise ← → ou les boutons tactiles pour bouger ton vaisseau.', highlight: 'player', action: 'move' },
+  { id: 3, title: 'TIR', text: 'Appuie sur ESPACE ou 🔥 pour lancer un grappin vertical.', highlight: 'hook', action: 'shoot' },
+  { id: 4, title: 'DIVISION', text: 'Les grosses orbes se divisent en plus petites. Continue !', highlight: 'ball', action: 'shoot' },
+  { id: 5, title: 'BONUS', text: 'Attrape les icônes qui tombent : multi-tir, ralenti, bouclier et plus !', action: 'wait' },
+  { id: 6, title: 'SURVIE', text: 'Évite les orbes. Tu as 3 vies. Bonne chance !', highlight: 'lives', action: 'wait' },
+];
+
+export interface Milestone {
+  id: number;
+  title: string;
+  subtitle: string;
+  life: number;
+  maxLife: number;
+  color: string;
+}
+
+export interface GameState {
+  phase:         GamePhase;
+  score:         number;
+  level:         number;
+  difficulty:    DifficultyProfile;
+  combo:         number;
+  comboTimer:    number;
+  comboDisplay:  number;
+  player:        Player;
+  balls:         Ball[];
+  hooks:         Hook[];
+  powerUps:      PowerUp[];
+  effects:       ActiveEffects;
+  nextId:        number;
+  flashParticles: FlashParticle[];
+  levelTimer:    number;
+  titleTimer:    number;
+  shake:         ScreenShake;
+  floaters:      Floater[];
+  ballSpawnPulse: number;
+  streak:        number;
+  onboardingStep: number;
+  onboardingTimer: number;
+  /** Total orbs popped across all runs */
+  totalPopped:   number;
+  /** Best score */
+  bestScore:     number;
+  /** Unlocked levels (persistent in session) */
+  maxLevelReached: number;
+  /** Level intro card timer */
+  levelIntro:    number;
+  /** Achievement / milestone notifications */
+  milestones:    Milestone[];
+  /** Per-level stats */
+  levelHits:     number;
+  /** Last score milestone reached (for bonus) */
+  scoreMilestone: number;
+  /** Ambient background particles */
+  ambient:       Ambient[];
+}
+
+export interface Ambient {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  hue: string;
+  alpha: number;
+}
+
+export interface FlashParticle {
+  id:    number;
+  x:     number;
+  y:     number;
+  vx:    number;
+  vy:    number;
+  r:     number;
+  color: string;
+  life:  number;
+  maxLife: number;
+}
+
+export interface ScreenShake {
+  intensity: number;
+  duration: number;
+  elapsed: number;
+}
+
+export interface Floater {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  life: number;
+  maxLife: number;
+  scale: number;
+}
+
+export interface InputState {
+  left:  boolean;
+  right: boolean;
+  fire:  boolean;
+  fireHeld: boolean;
+  mute: boolean;
+}

@@ -1,0 +1,467 @@
+import { GameState, Ball, InputState, ONBOARDING_STEPS } from './types';
+import {
+  LOGICAL_WIDTH, LOGICAL_HEIGHT, FLOOR_Y, CEILING_Y,
+  GRAVITY, BALL_RADII, BALL_SPEEDS,
+  PLAYER_SPEED, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_Y_OFFSET,
+  HOOK_SPEED, HOOK_WIDTH,
+  COMBO_WINDOW,
+  BASE_SCORE,
+  TINY_RADIUS, TINY_SPEED,
+} from './constants';
+import { makeBall, makeLevelBalls, makeInitialPlayer, uid } from './initialState';
+import { spawnParticles, spawnRing } from './particles';
+import { playSfx, playMusicForLevel } from './sounds';
+import { getDifficulty } from './levels';
+import { updatePowerUps, checkPowerUpCollection, maybeSpawnPowerUp } from './powerups';
+import { getTheme } from './themes';
+
+function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+
+function addFloater(state: GameState, x: number, y: number, text: string, color: string) {
+  state.floaters.push({
+    id: uid(), x, y, text, color,
+    life: 1.2, maxLife: 1.2, scale: 1,
+  });
+}
+
+function addMilestone(state: GameState, title: string, subtitle: string, color: string) {
+  state.milestones.push({ id: uid(), title, subtitle, life: 2.4, maxLife: 2.4, color });
+  if (state.milestones.length > 3) state.milestones.shift();
+  playSfx('milestone');
+}
+
+function triggerShake(state: GameState, intensity: number, duration: number) {
+  state.shake = { intensity, duration, elapsed: 0 };
+}
+
+function startLevel(state: GameState, level: number) {
+  state.level = level;
+  state.difficulty = getDifficulty(level);
+  state.balls = makeLevelBalls(level, state.player.x);
+  state.hooks = [];
+  state.powerUps = [];
+  state.ballSpawnPulse = 1;
+  state.levelIntro = 2.6;
+  state.levelHits = 0;
+  state.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0 };
+  playMusicForLevel(level);
+}
+
+// Ambient drifting particles for atmosphere
+function updateAmbient(state: GameState, dt: number, hue: string) {
+  if (state.ambient.length < 26 && Math.random() < 0.08) {
+    state.ambient.push({
+      id: uid(),
+      x: Math.random() * LOGICAL_WIDTH,
+      y: CEILING_Y + Math.random() * (FLOOR_Y - CEILING_Y),
+      vx: (Math.random() - 0.5) * 18,
+      vy: -8 - Math.random() * 18,
+      r: 1 + Math.random() * 2.5,
+      hue,
+      alpha: 0.2 + Math.random() * 0.4,
+    });
+  }
+  for (const a of state.ambient) {
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    if (a.y < CEILING_Y - 10 || a.x < -10 || a.x > LOGICAL_WIDTH + 10) {
+      a.y = FLOOR_Y + 10;
+      a.x = Math.random() * LOGICAL_WIDTH;
+    }
+  }
+}
+
+export function update(
+  state: GameState,
+  dt: number,
+  input: InputState,
+): GameState {
+  dt = Math.min(dt, 0.05);
+  const s = state;
+  const effects = s.effects;
+
+  // Time dilation from slow-mo power-up
+  const timeScale = effects.slowMoTimer > 0 ? 0.55 : 1.0;
+  const effectiveDt = dt * timeScale;
+
+  // ── Title screen ──────────────────────────────────────────────────────────
+  if (s.phase === 'title') {
+    s.titleTimer += dt;
+    updateAmbient(s, dt, '#4488ff');
+    if (input.fire) {
+      s.phase = 'onboarding';
+      s.onboardingStep = 0;
+      s.onboardingTimer = 0;
+      s.player = makeInitialPlayer();
+      playSfx('start');
+    }
+    return s;
+  }
+
+  // ── Onboarding ────────────────────────────────────────────────────────────
+  if (s.phase === 'onboarding') {
+    s.onboardingTimer += dt;
+    updateAmbient(s, dt, '#4488ff');
+    const step = ONBOARDING_STEPS[s.onboardingStep];
+    if (!step) {
+      s.phase = 'playing';
+      startLevel(s, 1);
+      return s;
+    }
+
+    let advance = false;
+    if (s.onboardingTimer > 2.5) advance = true;
+    if (step.action === 'move' && (input.left || input.right)) advance = true;
+    if (step.action === 'shoot' && input.fire) advance = true;
+    if (input.fire && step.action === 'wait' && s.onboardingTimer > 0.8) advance = true;
+
+    if (advance) {
+      s.onboardingStep += 1;
+      s.onboardingTimer = 0;
+      if (s.onboardingStep >= ONBOARDING_STEPS.length) {
+        s.phase = 'playing';
+        startLevel(s, 1);
+      }
+    }
+    return s;
+  }
+
+  // ── Level-up banner ───────────────────────────────────────────────────────
+  if (s.phase === 'levelup') {
+    s.levelTimer -= dt;
+    if (s.levelTimer <= 0) {
+      startLevel(s, s.level + 1);
+      s.phase = 'playing';
+    }
+    return s;
+  }
+
+  // ── Game over screen ──────────────────────────────────────────────────────
+  if (s.phase === 'gameover') {
+    if (input.fire) {
+      s.bestScore = Math.max(s.bestScore, s.score);
+      s.phase = 'title';
+      s.score = 0;
+      s.level = 1;
+      s.combo = 0;
+      s.comboTimer = 0;
+      s.comboDisplay = 0;
+      s.streak = 0;
+      s.balls = [];
+      s.hooks = [];
+      s.powerUps = [];
+      s.flashParticles = [];
+      s.floaters = [];
+      s.milestones = [];
+      s.shake = { intensity: 0, duration: 0, elapsed: 0 };
+      s.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0 };
+      s.player = makeInitialPlayer();
+      s.difficulty = getDifficulty(1);
+    }
+    return s;
+  }
+
+  // ── Dead (brief flash) ────────────────────────────────────────────────────
+  if (s.phase === 'dead') {
+    s.levelTimer -= dt;
+    if (s.levelTimer <= 0) {
+      if (s.player.lives <= 0) {
+        s.phase = 'gameover';
+        s.bestScore = Math.max(s.bestScore, s.score);
+        playSfx('gameover');
+      } else {
+        s.phase = 'playing';
+        s.hooks = [];
+        s.powerUps = [];
+        s.player.invincible = 2.5;
+        s.combo = 0;
+        s.comboTimer = 0;
+        s.comboDisplay = 0;
+        s.streak = 0;
+        playMusicForLevel(s.level);
+      }
+    }
+    return s;
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  PLAYING
+  // ═════════════════════════════════════════════════════════════════════════
+
+  const { player } = s;
+  const diff = s.difficulty;
+
+  // Update screen shake
+  if (s.shake.duration > 0) {
+    s.shake.elapsed += dt;
+    if (s.shake.elapsed >= s.shake.duration) s.shake = { intensity: 0, duration: 0, elapsed: 0 };
+  }
+
+  // Ball spawn pulse decay + level intro decay
+  if (s.ballSpawnPulse > 0) s.ballSpawnPulse = Math.max(0, s.ballSpawnPulse - dt * 2);
+  if (s.levelIntro > 0) s.levelIntro = Math.max(0, s.levelIntro - dt);
+
+  // Milestones life decay
+  for (const m of s.milestones) m.life -= dt;
+  s.milestones = s.milestones.filter(m => m.life > 0);
+
+  // Ambient particles
+  updateAmbient(s, dt, getTheme(s.level).floorGlow);
+
+  // ── Player invincibility ──────────────────────────────────────────────────
+  if (player.invincible > 0) player.invincible -= dt;
+
+  // ── Player movement ───────────────────────────────────────────────────────
+  const halfW = PLAYER_WIDTH / 2;
+  if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
+  if (input.right) player.x += PLAYER_SPEED * effectiveDt;
+  player.x = clamp(player.x, halfW, LOGICAL_WIDTH - halfW);
+  player.y = FLOOR_Y - PLAYER_HEIGHT / 2 - PLAYER_Y_OFFSET;
+  player.squash = player.squash + (1 - player.squash) * Math.min(dt * 8, 1);
+
+  // ── Charge super shot ─────────────────────────────────────────────────────
+  const prevCharge = player.charge;
+  if (input.fireHeld) {
+    player.charge = Math.min(1, player.charge + dt * 0.8);
+    if (player.charge >= 0.8 && prevCharge < 0.8) playSfx('charge');
+  } else {
+    player.charge = Math.max(0, player.charge - dt * 3);
+  }
+
+  // ── Fire hook ─────────────────────────────────────────────────────────────
+  if (input.fire && s.hooks.length < (effects.multishotTimer > 0 ? 3 : 1)) {
+    const count = effects.multishotTimer > 0 ? 3 : 1;
+    for (let i = 0; i < count; i++) {
+      const spread = count === 1 ? 0 : (i - 1) * 14;
+      s.hooks.push({
+        id: uid(),
+        x: player.x + spread,
+        tipY: player.y - PLAYER_HEIGHT / 2,
+        baseY: player.y - PLAYER_HEIGHT / 2,
+        active: true,
+        spawnScale: 1.3,
+        width: HOOK_WIDTH * (1 + player.charge * 1.5),
+        color: player.charge > 0.8 ? '#ffdd00' : '#aaddff',
+      });
+    }
+    player.squash = 0.82;
+    playSfx(player.charge > 0.8 ? 'shot2' : 'shot');
+  }
+
+  // ── Update hooks ──────────────────────────────────────────────────────────
+  s.hooks = s.hooks.filter(h => h.active);
+  for (const hook of s.hooks) {
+    if (hook.spawnScale > 1) hook.spawnScale -= dt * 3;
+    hook.tipY -= HOOK_SPEED * effectiveDt;
+    if (hook.tipY <= CEILING_Y) hook.active = false;
+  }
+
+  // ── Update balls ──────────────────────────────────────────────────────────
+  const ballsToAdd: Ball[] = [];
+  const ballIdsToRemove: Set<number> = new Set();
+  const hookIdsToRemove: Set<number> = new Set();
+
+  for (const ball of s.balls) {
+    ball.vy += GRAVITY * diff.gravityMultiplier * effectiveDt;
+
+    if (ball.homing && ball.vy > 0) {
+      const toPlayer = player.x - ball.x;
+      ball.vx += toPlayer * 0.7 * effectiveDt;
+      ball.vx = clamp(ball.vx, -350, 350);
+    }
+
+    ball.rotation += ball.rotSpeed * effectiveDt;
+    ball.x += ball.vx * effectiveDt;
+    ball.y += ball.vy * effectiveDt;
+
+    // Motion trail
+    ball.trail.push({ x: ball.x, y: ball.y });
+    if (ball.trail.length > 8) ball.trail.shift();
+
+    if (ball.x - ball.radius <= 0) { ball.x = ball.radius; ball.vx = Math.abs(ball.vx); }
+    if (ball.x + ball.radius >= LOGICAL_WIDTH) { ball.x = LOGICAL_WIDTH - ball.radius; ball.vx = -Math.abs(ball.vx); }
+
+    if (ball.y + ball.radius >= FLOOR_Y) {
+      ball.y = FLOOR_Y - ball.radius;
+      ball.vy = -Math.abs(ball.vy);
+      const minKick = (BALL_SPEEDS[ball.tier] || TINY_SPEED) * diff.speedMultiplier * 1.1;
+      if (Math.abs(ball.vy) < minKick) ball.vy = -minKick;
+      ball.radius *= 0.92;
+      if (Math.random() < 0.25) playSfx('bounce');
+    } else {
+      const target = ball.tier === 0 ? TINY_RADIUS : BALL_RADII[ball.tier];
+      ball.radius += (target - ball.radius) * Math.min(effectiveDt * 6, 1);
+    }
+
+    if (ball.y - ball.radius <= CEILING_Y) { ball.y = CEILING_Y + ball.radius; ball.vy = Math.abs(ball.vy); }
+    if (ball.flash > 0) ball.flash -= effectiveDt * 4;
+  }
+
+  // ── Hook vs Ball collision ────────────────────────────────────────────────
+  for (const hook of s.hooks) {
+    if (!hook.active) continue;
+    for (const ball of s.balls) {
+      if (ballIdsToRemove.has(ball.id)) continue;
+      const dx = Math.abs(hook.x - ball.x);
+      const inVertical = hook.tipY <= ball.y + ball.radius && hook.baseY >= ball.y - ball.radius;
+      if (dx <= ball.radius && inVertical) {
+        ballIdsToRemove.add(ball.id);
+        hookIdsToRemove.add(hook.id);
+        hook.active = false;
+
+        s.combo += 1;
+        s.comboTimer = COMBO_WINDOW;
+        s.comboDisplay = 1.8;
+        s.streak += 1;
+        s.totalPopped += 1;
+
+        const scoreBoost = effects.scoreBoostTimer > 0 ? 2 : 1;
+        const multiplier = s.combo * scoreBoost;
+        const gained = Math.floor(BASE_SCORE[ball.tier] * multiplier * diff.speedMultiplier);
+        s.score += gained;
+
+        addFloater(s, ball.x, ball.y - ball.radius - 10, `+${gained}`, ball.glowColor);
+        spawnParticles(s.flashParticles, ball.x, ball.y, ball.glowColor, 16);
+        spawnRing(s.flashParticles, ball.x, ball.y, '#ffffff', 12, 80);
+        triggerShake(s, 2 + ball.tier, 0.12 + ball.tier * 0.04);
+        maybeSpawnPowerUp(s, ball.x, ball.y);
+
+        if (ball.tier === 0) playSfx('pop');
+        else playSfx('split');
+
+        // Combo milestones
+        if (s.combo === 5) {
+          addMilestone(s, 'COMBO ×5 !', 'Bonus de rapidité', '#ffdd00');
+          s.score += 250;
+        } else if (s.combo === 10) {
+          addMilestone(s, 'COMBO ×10 !', 'En feu !', '#ff6b00');
+          s.score += 750;
+        } else if (s.combo === 20) {
+          addMilestone(s, 'MÉGA COMBO !', 'Légendaire', '#ff3a6e');
+          s.score += 2500;
+        } else if (s.combo > 1 && s.combo % 5 === 0) {
+          playSfx('combo');
+        }
+
+        // Score milestones (every 10000)
+        const milestoneTier = Math.floor(s.score / 10000);
+        if (milestoneTier > s.scoreMilestone) {
+          s.scoreMilestone = milestoneTier;
+          addMilestone(s, `${milestoneTier * 10000} POINTS !`, 'Continue comme ça', '#a259ff');
+        }
+
+        // Total popped milestones
+        if (s.totalPopped === 50) addMilestone(s, '50 ORBES !', 'Vétéran', '#39ff14');
+        else if (s.totalPopped === 100) addMilestone(s, '100 ORBES !', 'As des orbes', '#00e5ff');
+        else if (s.totalPopped === 250) addMilestone(s, '250 ORBES !', 'Machine à pop', '#ff3a6e');
+
+        if (ball.tier > 1 || (diff.smallestCanSplit && ball.tier === 1)) {
+          const newTier = ball.tier - 1;
+          const newRadius = newTier === 0 ? TINY_RADIUS : BALL_RADII[newTier];
+          const newSpd = ((newTier === 0 ? TINY_SPEED : BALL_SPEEDS[newTier]) * diff.speedMultiplier) + diff.extraHSpeed;
+          const lift = Math.abs(ball.vy) * 0.7;
+
+          ballsToAdd.push(makeBall(ball.x - newRadius, ball.y, -Math.abs(newSpd), -lift, newTier, Math.floor(Math.random() * 3)));
+          ballsToAdd.push(makeBall(ball.x + newRadius, ball.y, Math.abs(newSpd), -lift, newTier, Math.floor(Math.random() * 3)));
+        }
+        break;
+      }
+    }
+  }
+
+  s.balls = s.balls.filter(b => !ballIdsToRemove.has(b.id));
+  s.hooks = s.hooks.filter(h => !hookIdsToRemove.has(h.id) && h.active);
+  s.balls.push(...ballsToAdd);
+
+  // ── Power-ups ─────────────────────────────────────────────────────────────
+  updatePowerUps(s, dt, effects);
+  if (checkPowerUpCollection(s, player, effects)) {
+    triggerShake(s, 2, 0.15);
+  }
+
+  // ── Player vs Ball collision ──────────────────────────────────────────────
+  if (player.invincible <= 0 && effects.shieldTimer <= 0) {
+    for (const ball of s.balls) {
+      const dx = ball.x - player.x;
+      const dy = ball.y - player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < ball.radius + Math.max(PLAYER_WIDTH, PLAYER_HEIGHT) * 0.4) {
+        player.lives -= 1;
+        player.invincible = 0;
+        s.hooks = [];
+        s.powerUps = [];
+        s.combo = 0;
+        s.comboTimer = 0;
+        s.comboDisplay = 0;
+        s.streak = 0;
+        s.levelHits += 1;
+        s.phase = 'dead';
+        s.levelTimer = 1.4;
+        spawnParticles(s.flashParticles, player.x, player.y, '#ff3a6e', 24, 280);
+        spawnRing(s.flashParticles, player.x, player.y, '#ffffff', 18, 120);
+        triggerShake(s, 9, 0.45);
+        playSfx('hit');
+        break;
+      }
+    }
+  } else if (effects.shieldTimer > 0) {
+    for (const ball of s.balls) {
+      const dx = ball.x - player.x;
+      const dy = ball.y - player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < ball.radius + 55) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        ball.vx += nx * 200 * dt;
+        ball.vy += ny * 200 * dt;
+      }
+    }
+  }
+
+  // ── Combo timer ───────────────────────────────────────────────────────────
+  if (s.comboTimer > 0) {
+    s.comboTimer -= dt;
+    if (s.comboTimer <= 0) s.combo = 0;
+  }
+  if (s.comboDisplay > 0) s.comboDisplay -= dt;
+
+  // ── Particles ─────────────────────────────────────────────────────────────
+  for (const p of s.flashParticles) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 220 * dt;
+    p.life -= dt;
+  }
+  s.flashParticles = s.flashParticles.filter(p => p.life > 0);
+
+  // ── Floaters ──────────────────────────────────────────────────────────────
+  for (const f of s.floaters) {
+    f.y -= 40 * dt;
+    f.life -= dt;
+    const p = 1 - f.life / f.maxLife;
+    f.scale = 1 + p * 0.3;
+  }
+  s.floaters = s.floaters.filter(f => f.life > 0);
+
+  // ── Level clear ───────────────────────────────────────────────────────────
+  if (s.balls.length === 0 && s.phase === 'playing') {
+    s.phase = 'levelup';
+    s.levelTimer = 2.6;
+    s.hooks = [];
+    s.powerUps = [];
+    s.maxLevelReached = Math.max(s.maxLevelReached, s.level + 1);
+    const bonus = Math.floor(500 * s.level * (1 + s.streak * 0.05));
+    s.score += bonus;
+    addFloater(s, LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 60, `NIVEAU TERMINÉ +${bonus}`, '#39ff14');
+    triggerShake(s, 3, 0.25);
+    playSfx('levelup');
+
+    // Perfect level bonus
+    if (s.levelHits === 0) {
+      addMilestone(s, 'NIVEAU PARFAIT !', `+${1000 * s.level} bonus`, '#39ff14');
+      s.score += 1000 * s.level;
+    }
+  }
+
+  return s;
+}
