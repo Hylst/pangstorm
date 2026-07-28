@@ -88,10 +88,16 @@ export function update(
     s.titleTimer += dt;
     updateAmbient(s, dt, '#4488ff');
     if (input.fire) {
-      s.phase = 'onboarding';
-      s.onboardingStep = 0;
-      s.onboardingTimer = 0;
       s.player = makeInitialPlayer();
+      if (localStorage.getItem('pang_genesis_played')) {
+        s.phase = 'playing';
+        startLevel(s, 1);
+      } else {
+        localStorage.setItem('pang_genesis_played', '1');
+        s.phase = 'onboarding';
+        s.onboardingStep = 0;
+        s.onboardingTimer = 0;
+      }
       playSfx('start');
     }
     return s;
