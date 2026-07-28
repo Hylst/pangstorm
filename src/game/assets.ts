@@ -18,11 +18,11 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 export async function loadAssets(): Promise<GameAssets> {
   const backgroundPaths = [
-    '/images/bg_level1.png',
-    '/images/bg_level2.png',
-    '/images/bg_level3.png',
-    '/images/bg_level4.png',
-    '/images/bg_level5.png',
+    'images/bg_level1.webp',
+    'images/bg_level2.webp',
+    'images/bg_level3.webp',
+    'images/bg_level4.webp',
+    'images/bg_level5.webp',
   ];
 
   const backgrounds: HTMLImageElement[] = [];
