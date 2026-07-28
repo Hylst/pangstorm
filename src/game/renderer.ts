@@ -263,7 +263,7 @@ function drawBackground(ctx: CanvasRenderingContext2D, theme: LevelTheme, assets
     const parallaxX = Math.sin(time * 0.1) * 10;
     const parallaxY = Math.cos(time * 0.08) * 6;
     ctx.save();
-    ctx.globalAlpha = 0.85;
+    ctx.globalAlpha = 0.75;
     ctx.drawImage(bgImg, parallaxX - 8, parallaxY - 6, LOGICAL_WIDTH + 16, LOGICAL_HEIGHT + 12);
     ctx.restore();
   } else {
@@ -638,9 +638,11 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
     ctx.fillText('un jeu par Hylst - Geoffroy', cx, cy + 100);
     ctx.fillStyle = 'rgba(110,130,180,0.7)';
     ctx.fillText('avec l\'aide d\'une IA', cx, cy + 116);
-    ctx.fillStyle = 'rgba(90,110,170,0.55)';
+    ctx.fillStyle = 'rgba(100,120,170,0.6)';
     ctx.font = '10px "Courier New", monospace';
-    ctx.fillText('librement inspiré du classique Pang d\'Ocean (Atari ST)', cx, cy + 134);
+    ctx.fillText('graphismes réalisés par IA', cx, cy + 132);
+    ctx.fillStyle = 'rgba(90,110,170,0.5)';
+    ctx.fillText('librement inspiré du classique Pang d\'Ocean (Atari ST)', cx, cy + 148);
 
     const demoColors = ['#ff3a6e', '#00e5ff', '#ffdd00', '#a259ff'];
     for (let i = 0; i < 4; i++) {
