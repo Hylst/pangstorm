@@ -283,6 +283,12 @@ function drawBackground(ctx: CanvasRenderingContext2D, theme: LevelTheme, assets
     ctx.fillRect(sx, sy, 1.5, 1.5);
   }
   ctx.globalAlpha = 1;
+
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = theme.accent;
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+  ctx.restore();
 }
 
 function drawAmbient(ctx: CanvasRenderingContext2D, state: GameState) {
