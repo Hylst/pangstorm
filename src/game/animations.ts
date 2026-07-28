@@ -1,5 +1,3 @@
-// ─── Tween / animation utilities ──────────────────────────────────────────────
-
 export type EaseFn = (t: number) => number;
 
 export const Ease = {
@@ -53,8 +51,6 @@ export class Animator {
     this.tweens = this.tweens.filter(t => t.elapsed < t.duration);
   }
 }
-
-// ─── Shake effect ─────────────────────────────────────────────────────────────
 
 export interface ScreenShake {
   intensity: number;

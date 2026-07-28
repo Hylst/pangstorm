@@ -10,8 +10,6 @@ import { getTheme, LevelTheme } from './themes';
 import { GameAssets } from './assets';
 import { getPowerUpColor, getPowerUpSymbol } from './powerups';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -554,12 +552,12 @@ function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, time: n
   ctx.font = '18px "Courier New", monospace';
   ctx.fillStyle = '#aaccff';
   ctx.shadowBlur = 0;
-  // wrap text
+
   wrapText(ctx, step.text, cx, cy - 10, 560, 24);
 
-  ctx.font = '16px "Courier New", monospace';
-  ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
-  ctx.fillText('ESPACE POUR CONTINUER', cx, cy + 50);
+    ctx.font = '16px "Courier New", monospace';
+    ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
+    ctx.fillText('ESPACE OU CLIC POUR CONTINUER', cx, cy + 50);
 
   if (step.highlight === 'player') {
     ctx.strokeStyle = '#00e5ff';
@@ -633,7 +631,10 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
     ctx.fillStyle = 'rgba(140,160,210,0.8)';
     ctx.fillText('un jeu par Hylst - Geoffroy', cx, cy + 100);
     ctx.fillStyle = 'rgba(110,130,180,0.7)';
-    ctx.fillText('avec l\'aide d\'une IA', cx, cy + 118);
+    ctx.fillText('avec l\'aide d\'une IA', cx, cy + 116);
+    ctx.fillStyle = 'rgba(90,110,170,0.55)';
+    ctx.font = '10px "Courier New", monospace';
+    ctx.fillText('librement inspiré du classique Pang d\'Ocean (Atari ST)', cx, cy + 134);
 
     const demoColors = ['#ff3a6e', '#00e5ff', '#ffdd00', '#a259ff'];
     for (let i = 0; i < 4; i++) {
@@ -702,8 +703,6 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
     return;
   }
 }
-
-// ─── Main render ──────────────────────────────────────────────────────────────
 
 export function render(
   ctx: CanvasRenderingContext2D,

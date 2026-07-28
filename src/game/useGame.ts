@@ -8,7 +8,10 @@ import { initSounds, initMusic, stopMusic, toggleMusic } from './sounds';
 import { loadAssets, GameAssets } from './assets';
 
 export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
-  const stateRef  = useRef<GameState>(makeInitialState());
+  const initialSt = makeInitialState();
+  const savedBest = localStorage.getItem('pang_genesis_best');
+  if (savedBest) initialSt.bestScore = parseInt(savedBest, 10) || 0;
+  const stateRef  = useRef<GameState>(initialSt);
   const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false });
   const rafRef    = useRef<number>(0);
   const lastRef   = useRef<number>(0);
@@ -44,7 +47,11 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
 
     const input = { ...inputRef.current };
     inputRef.current.fire = false;
+    const prevBest = stateRef.current.bestScore;
     stateRef.current = update(stateRef.current, dt, input);
+    if (stateRef.current.bestScore > prevBest) {
+      localStorage.setItem('pang_genesis_best', String(stateRef.current.bestScore));
+    }
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current);
 
@@ -98,11 +105,27 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       if (e.code === 'ArrowRight') inputRef.current.right = false;
       if (e.code === 'Space')      inputRef.current.fireHeld = false;
     };
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) {
+        inputRef.current.fire = true;
+        inputRef.current.fireHeld = true;
+        void initAudio();
+      }
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button === 0) {
+        inputRef.current.fireHeld = false;
+      }
+    };
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup',   onKeyUp);
+    window.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mouseup',   onMouseUp);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup',   onKeyUp);
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup',   onMouseUp);
     };
   }, [initAudio, toggleMute]);
 

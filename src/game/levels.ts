@@ -1,5 +1,3 @@
-// ─── Progressive difficulty system ────────────────────────────────────────────
-
 export interface DifficultyProfile {
   level: number;
   ballCount: number;

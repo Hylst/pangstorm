@@ -84,7 +84,6 @@ export function update(
   const timeScale = effects.slowMoTimer > 0 ? 0.55 : 1.0;
   const effectiveDt = dt * timeScale;
 
-  // ── Title screen ──────────────────────────────────────────────────────────
   if (s.phase === 'title') {
     s.titleTimer += dt;
     updateAmbient(s, dt, '#4488ff');
@@ -98,7 +97,6 @@ export function update(
     return s;
   }
 
-  // ── Onboarding ────────────────────────────────────────────────────────────
   if (s.phase === 'onboarding') {
     s.onboardingTimer += dt;
     updateAmbient(s, dt, '#4488ff');
@@ -126,7 +124,6 @@ export function update(
     return s;
   }
 
-  // ── Level-up banner ───────────────────────────────────────────────────────
   if (s.phase === 'levelup') {
     s.levelTimer -= dt;
     if (s.levelTimer <= 0) {
@@ -136,7 +133,6 @@ export function update(
     return s;
   }
 
-  // ── Game over screen ──────────────────────────────────────────────────────
   if (s.phase === 'gameover') {
     if (input.fire) {
       s.bestScore = Math.max(s.bestScore, s.score);
@@ -161,7 +157,6 @@ export function update(
     return s;
   }
 
-  // ── Dead (brief flash) ────────────────────────────────────────────────────
   if (s.phase === 'dead') {
     s.levelTimer -= dt;
     if (s.levelTimer <= 0) {
@@ -184,9 +179,7 @@ export function update(
     return s;
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  //  PLAYING
-  // ═════════════════════════════════════════════════════════════════════════
+
 
   const { player } = s;
   const diff = s.difficulty;
@@ -208,10 +201,10 @@ export function update(
   // Ambient particles
   updateAmbient(s, dt, getTheme(s.level).floorGlow);
 
-  // ── Player invincibility ──────────────────────────────────────────────────
+
   if (player.invincible > 0) player.invincible -= dt;
 
-  // ── Player movement ───────────────────────────────────────────────────────
+
   const halfW = PLAYER_WIDTH / 2;
   if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
   if (input.right) player.x += PLAYER_SPEED * effectiveDt;
@@ -219,7 +212,7 @@ export function update(
   player.y = FLOOR_Y - PLAYER_HEIGHT / 2 - PLAYER_Y_OFFSET;
   player.squash = player.squash + (1 - player.squash) * Math.min(dt * 8, 1);
 
-  // ── Charge super shot ─────────────────────────────────────────────────────
+
   const prevCharge = player.charge;
   if (input.fireHeld) {
     player.charge = Math.min(1, player.charge + dt * 0.8);
@@ -228,7 +221,7 @@ export function update(
     player.charge = Math.max(0, player.charge - dt * 3);
   }
 
-  // ── Fire hook ─────────────────────────────────────────────────────────────
+
   if (input.fire && s.hooks.length < (effects.multishotTimer > 0 ? 3 : 1)) {
     const count = effects.multishotTimer > 0 ? 3 : 1;
     for (let i = 0; i < count; i++) {
@@ -248,7 +241,7 @@ export function update(
     playSfx(player.charge > 0.8 ? 'shot2' : 'shot');
   }
 
-  // ── Update hooks ──────────────────────────────────────────────────────────
+
   s.hooks = s.hooks.filter(h => h.active);
   for (const hook of s.hooks) {
     if (hook.spawnScale > 1) hook.spawnScale -= dt * 3;
@@ -256,7 +249,7 @@ export function update(
     if (hook.tipY <= CEILING_Y) hook.active = false;
   }
 
-  // ── Update balls ──────────────────────────────────────────────────────────
+
   const ballsToAdd: Ball[] = [];
   const ballIdsToRemove: Set<number> = new Set();
   const hookIdsToRemove: Set<number> = new Set();
@@ -297,7 +290,7 @@ export function update(
     if (ball.flash > 0) ball.flash -= effectiveDt * 4;
   }
 
-  // ── Hook vs Ball collision ────────────────────────────────────────────────
+
   for (const hook of s.hooks) {
     if (!hook.active) continue;
     for (const ball of s.balls) {
@@ -373,13 +366,13 @@ export function update(
   s.hooks = s.hooks.filter(h => !hookIdsToRemove.has(h.id) && h.active);
   s.balls.push(...ballsToAdd);
 
-  // ── Power-ups ─────────────────────────────────────────────────────────────
+
   updatePowerUps(s, dt, effects);
   if (checkPowerUpCollection(s, player, effects)) {
     triggerShake(s, 2, 0.15);
   }
 
-  // ── Player vs Ball collision ──────────────────────────────────────────────
+
   if (player.invincible <= 0 && effects.shieldTimer <= 0) {
     for (const ball of s.balls) {
       const dx = ball.x - player.x;
@@ -418,14 +411,14 @@ export function update(
     }
   }
 
-  // ── Combo timer ───────────────────────────────────────────────────────────
+
   if (s.comboTimer > 0) {
     s.comboTimer -= dt;
     if (s.comboTimer <= 0) s.combo = 0;
   }
   if (s.comboDisplay > 0) s.comboDisplay -= dt;
 
-  // ── Particles ─────────────────────────────────────────────────────────────
+
   for (const p of s.flashParticles) {
     p.x += p.vx * dt;
     p.y += p.vy * dt;
@@ -434,7 +427,7 @@ export function update(
   }
   s.flashParticles = s.flashParticles.filter(p => p.life > 0);
 
-  // ── Floaters ──────────────────────────────────────────────────────────────
+
   for (const f of s.floaters) {
     f.y -= 40 * dt;
     f.life -= dt;
@@ -443,7 +436,7 @@ export function update(
   }
   s.floaters = s.floaters.filter(f => f.life > 0);
 
-  // ── Level clear ───────────────────────────────────────────────────────────
+
   if (s.balls.length === 0 && s.phase === 'playing') {
     s.phase = 'levelup';
     s.levelTimer = 2.6;

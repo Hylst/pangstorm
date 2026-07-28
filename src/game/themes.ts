@@ -1,22 +1,13 @@
-// ─── Visual themes per level ────────────────────────────────────────────────
-
 export interface LevelTheme {
   name: string;
   bgIndex: number;
-  /** CSS hex colors for balls per tier: [large, medium, small] */
   ballColors: [string, string, string];
-  /** Gradient fallback if image not loaded */
   fallbackTop: string;
   fallbackBottom: string;
-  /** Grid/neon color */
   accent: string;
-  /** Floor/ceiling glow color */
   floorGlow: string;
-  /** Particle style */
   particleBlend: string;
-  /** HUD color */
   hudColor: string;
-  /** Description for onboarding/level intro */
   description: string;
 }
 

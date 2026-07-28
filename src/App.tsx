@@ -162,7 +162,7 @@ export default function App() {
         }}
         className="keyboard-hint"
       >
-        ← → DÉPLACER &nbsp;|&nbsp; ESPACE TIRER / CHARGER &nbsp;|&nbsp; M SILENCE
+        ← → DÉPLACER &nbsp;|&nbsp; ESPACE / CLIC TIRER &nbsp;|&nbsp; M SILENCE
       </div>
 
       <style>{`

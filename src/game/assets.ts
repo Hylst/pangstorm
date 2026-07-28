@@ -1,5 +1,3 @@
-// ─── Asset loader ─────────────────────────────────────────────────────────────
-
 export interface GameAssets {
   backgrounds: HTMLImageElement[];
   loaded: boolean;
@@ -33,7 +31,7 @@ export async function loadAssets(): Promise<GameAssets> {
       const img = await loadImage(path);
       backgrounds.push(img);
     } catch {
-      // fallback: leave null, renderer will use gradient
+      
       backgrounds.push(null as any);
     }
   }

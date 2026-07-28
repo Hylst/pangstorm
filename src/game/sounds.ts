@@ -1,7 +1,5 @@
 import { Howl } from 'howler';
 
-// ─── Audio context helper (single shared context for sample generation) ────────
-
 let _sharedCtx: AudioContext | null = null;
 function audioCtx(): AudioContext {
   if (!_sharedCtx) {
@@ -9,8 +7,6 @@ function audioCtx(): AudioContext {
   }
   return _sharedCtx;
 }
-
-// ─── Sound effect generators ──────────────────────────────────────────────────
 
 function generateTone(
   duration: number,
@@ -136,8 +132,6 @@ function toWav(buffer: AudioBuffer): ArrayBuffer {
   return out;
 }
 
-// ─── Sound bank ───────────────────────────────────────────────────────────────
-
 const soundBank: Record<string, Howl> = {};
 const musicTracks: Howl[] = [];
 let currentTrack = -1;
@@ -169,8 +163,6 @@ export function playSfx(name: keyof typeof soundBank) {
   const howl = soundBank[name];
   if (howl) howl.play();
 }
-
-// ─── Rich procedural music: kick + hihat + bass + arp + lead ──────────────────
 
 interface TrackSpec {
   bpm: number;
@@ -238,27 +230,23 @@ function generateMusicTrack(spec: TrackSpec, duration: number): string {
 
       let out = 0;
 
-      // --- KICK drum on beats (steps 0,4,8,12) ---
       if (step % 4 === 0) {
         const kickFreq = 55 * Math.exp(-phaseInBeat * 8) + 40;
         const kickEnv = Math.exp(-phaseInBeat * 9);
         out += Math.sin(t * kickFreq * Math.PI * 2) * kickEnv * 0.5;
       }
 
-      // --- HI-HAT on offbeats (steps 2,6,10,14) and ghost ---
       if (step % 2 === 1) {
         const hatEnv = Math.exp(-phaseIn16 * 30);
         out += (Math.random() * 2 - 1) * hatEnv * 0.10;
       }
 
-      // --- SNARE on steps 4 & 12 (backbeat) ---
       if (step === 4 || step === 12) {
         const snareEnv = Math.exp(-phaseInBeat * 12);
         out += (Math.random() * 2 - 1) * snareEnv * 0.14;
         out += Math.sin(t * 200 * Math.PI * 2) * snareEnv * 0.06;
       }
 
-      // --- BASS ---
       const bassFreq = spec.bass[step];
       if (bassFreq) {
         const bassEnv = Math.exp(-phaseIn16 * 3);
@@ -266,14 +254,12 @@ function generateMusicTrack(spec: TrackSpec, duration: number): string {
         out += (bp < 0.5 ? 1 : -1) * bassEnv * 0.22;
       }
 
-      // --- ARP (bright) ---
       const arpFreq = spec.arp[step];
       if (arpFreq) {
         const arpEnv = Math.exp(-phaseIn16 * 6);
         out += Math.sin(t * arpFreq * Math.PI * 2) * arpEnv * 0.12;
       }
 
-      // --- LEAD melody ---
       const leadFreq = spec.lead[step];
       if (leadFreq) {
         const leadEnv = Math.exp(-phaseIn16 * 2.5);
@@ -281,7 +267,6 @@ function generateMusicTrack(spec: TrackSpec, duration: number): string {
         out += ((lp < 0.5 ? 1 : -1) * 0.6 + Math.sin(t * leadFreq * Math.PI * 2) * 0.4) * leadEnv * 0.10;
       }
 
-      // Soft limiter + pan
       data[i] = Math.tanh(out * 0.9) * pan * 0.65;
     }
   }

@@ -42,7 +42,7 @@ export function spawnPowerUp(x: number, y: number, forceType?: PowerUpType): Pow
   if (forceType) {
     type = forceType;
   } else {
-    // Rare extra life (8%), otherwise standard bonuses
+  
     if (Math.random() < 0.08) {
       type = 'extralife';
     } else {
@@ -91,7 +91,7 @@ export function updatePowerUps(state: GameState, dt: number, effects: ActiveEffe
     p.life -= dt;
     p.pulse += dt * 4;
 
-    // Wall bounce
+
     if (p.x < p.radius) { p.x = p.radius; p.vx = Math.abs(p.vx); }
     if (p.x > LOGICAL_WIDTH - p.radius) { p.x = LOGICAL_WIDTH - p.radius; p.vx = -Math.abs(p.vx); }
     if (p.y + p.radius > FLOOR_Y) { p.y = FLOOR_Y - p.radius; p.vy = -Math.abs(p.vy) * 0.6; }

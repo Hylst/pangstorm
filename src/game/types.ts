@@ -20,7 +20,6 @@ export interface Ball {
   rotation: number;
   rotSpeed: number;
   homing: boolean;
-  /** recent positions for motion trail */
   trail: { x: number; y: number }[];
 }
 
@@ -41,7 +40,6 @@ export interface Player {
   lives:   number;
   invincible: number;
   squash: number;
-  /** Charge level 0-1 for super shot */
   charge: number;
 }
 
@@ -96,21 +94,13 @@ export interface GameState {
   streak:        number;
   onboardingStep: number;
   onboardingTimer: number;
-  /** Total orbs popped across all runs */
   totalPopped:   number;
-  /** Best score */
   bestScore:     number;
-  /** Unlocked levels (persistent in session) */
   maxLevelReached: number;
-  /** Level intro card timer */
   levelIntro:    number;
-  /** Achievement / milestone notifications */
   milestones:    Milestone[];
-  /** Per-level stats */
   levelHits:     number;
-  /** Last score milestone reached (for bonus) */
   scoreMilestone: number;
-  /** Ambient background particles */
   ambient:       Ambient[];
 }
 
