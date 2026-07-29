@@ -306,6 +306,7 @@ export default function App() {
       )}
 
       <style>{`
+        .touch-overlay { touch-action: none; }
         @media not (any-pointer: coarse) {
           .touch-overlay { display: none !important; }
           .touch-corner-btns { display: none !important; }
