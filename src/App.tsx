@@ -26,6 +26,11 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasTouch, setHasTouch] = useState(false);
   const [hasKeyboard, setHasKeyboard] = useState(false);
+  // Masque le hint statique (Feu/Dir) pendant qu'un doigt est réellement posé sur la
+  // zone, pour ne jamais l'afficher en même temps que le joystick/cercle de tir
+  // dessiné sur le canvas (sinon doublon visuel — cf. retour utilisateur).
+  const [fireActive, setFireActive] = useState(false);
+  const [moveActive, setMoveActive] = useState(false);
 
   useEffect(() => {
     const touchMq = window.matchMedia('(any-pointer: coarse)');
@@ -97,7 +102,7 @@ export default function App() {
   const menuOpen = stateRef.current.phase === 'paused' || stateRef.current.phase === 'options';
 
   const fireIndicator = (
-    <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+    <div style={{ position: 'absolute', bottom: 16, left: 20, zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: fireActive ? 0 : 1, transition: 'opacity 120ms ease' }}>
       <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(255,150,150,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Feu</span>
       <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,80,80,0.5)', background: 'radial-gradient(circle, rgba(255,60,60,0.35), transparent 70%)' }} />
     </div>
@@ -205,21 +210,21 @@ export default function App() {
           <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               style={getZoneStyle('left')}
-              onPointerDown={(e) => handleTouchZone('fire', e)}
-              onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
-              onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
-              onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerDown={(e) => { setFireActive(true); handleTouchZone('fire', e); }}
+              onPointerUp={(e) => { setFireActive(false); handleTouchZoneEnd('fire', e); }}
+              onPointerLeave={(e) => { setFireActive(false); handleTouchZoneEnd('fire', e); }}
+              onPointerCancel={(e) => { setFireActive(false); handleTouchZoneEnd('fire', e); }}
             />
             <div
               style={getZoneStyle('right')}
-              onPointerDown={(e) => handleTouchZone('move', e)}
+              onPointerDown={(e) => { setMoveActive(true); handleTouchZone('move', e); }}
               onPointerMove={(e) => handleTouchZone('move', e)}
-              onPointerUp={(e) => handleTouchZoneEnd('move', e)}
-              onPointerLeave={(e) => handleTouchZoneEnd('move', e)}
-              onPointerCancel={(e) => handleTouchZoneEnd('move', e)}
+              onPointerUp={(e) => { setMoveActive(false); handleTouchZoneEnd('move', e); }}
+              onPointerLeave={(e) => { setMoveActive(false); handleTouchZoneEnd('move', e); }}
+              onPointerCancel={(e) => { setMoveActive(false); handleTouchZoneEnd('move', e); }}
             />
             {fireIndicator}
-            <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ position: 'absolute', bottom: 16, right: 20, zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: moveActive ? 0 : 1, transition: 'opacity 120ms ease' }}>
               <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,200,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Dir</span>
               <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,180,255,0.5)', background: 'radial-gradient(circle, rgba(60,140,255,0.35), transparent 70%)' }} />
               <div style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(180,220,255,0.6)', boxShadow: '0 0 8px rgba(100,180,255,0.5)' }} />
