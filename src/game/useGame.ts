@@ -1,24 +1,32 @@
+// hook principal — relie React, le canvas et la boucle de jeu
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { GameState, InputState } from './types';
 import { makeInitialState } from './initialState';
 import { update } from './update';
 import { render } from './renderer';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './constants';
-import { initSounds, initMusic, stopMusic, toggleMusic } from './sounds';
+import { initSounds, initMusic, stopMusic, toggleMusic, getSfxVolume, getMusicVolume, setSfxVolume, setMusicVolume } from './sounds';
 import { loadAssets, GameAssets } from './assets';
 
 export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const initialSt = makeInitialState();
   const savedBest = localStorage.getItem('pang_genesis_best');
   if (savedBest) initialSt.bestScore = parseInt(savedBest, 10) || 0;
+  // restaurer les étoiles sauvegardées
+  const savedStars = localStorage.getItem('pang_genesis_stars');
+  if (savedStars) {
+    try { initialSt.levelStars = JSON.parse(savedStars); } catch {}
+  }
   const stateRef  = useRef<GameState>(initialSt);
-  const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false });
+  const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false, pause: false, enter: false });
   const rafRef    = useRef<number>(0);
   const lastRef   = useRef<number>(0);
   const timeRef   = useRef<number>(0);
   const assetsRef = useRef<GameAssets>({ backgrounds: [], loaded: false });
   const [muted, setMuted] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
+  const [sfxVol, setSfxVolState] = useState(getSfxVolume());
+  const [musicVol, setMusicVolState] = useState(getMusicVolume());
 
   const fitCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -47,18 +55,21 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
 
     const input = { ...inputRef.current };
     inputRef.current.fire = false;
+    inputRef.current.pause = false;
+    inputRef.current.enter = false;
     const prevBest = stateRef.current.bestScore;
     stateRef.current = update(stateRef.current, dt, input);
     if (stateRef.current.bestScore > prevBest) {
       localStorage.setItem('pang_genesis_best', String(stateRef.current.bestScore));
     }
+    // sauvegarder les étoiles
+    localStorage.setItem('pang_genesis_stars', JSON.stringify(stateRef.current.levelStars));
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current);
 
     rafRef.current = requestAnimationFrame(loop);
   }, [canvasRef]);
 
-  // Load assets
   useEffect(() => {
     loadAssets().then(assets => {
       assetsRef.current = assets;
@@ -67,7 +78,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     });
   }, []);
 
-  // premier clic/touche => on lance l'audio (merci les navigateurs)
   const initAudio = useCallback(async () => {
     if (audioReady) return;
     await initSounds();
@@ -75,7 +85,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     setAudioReady(true);
   }, [audioReady]);
 
-  // Toggle mute
   const toggleMute = useCallback(() => {
     setMuted(prev => {
       const next = !prev;
@@ -84,7 +93,16 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     });
   }, []);
 
-  // Keyboard input
+  const handleSfxVol = useCallback((v: number) => {
+    setSfxVolume(v);
+    setSfxVolState(v);
+  }, []);
+
+  const handleMusicVol = useCallback((v: number) => {
+    setMusicVolume(v);
+    setMusicVolState(v);
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'ArrowLeft')  { e.preventDefault(); inputRef.current.left  = true; }
@@ -98,6 +116,14 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       if (e.code === 'KeyM') {
         e.preventDefault();
         toggleMute();
+      }
+      if (e.code === 'KeyP') {
+        e.preventDefault();
+        inputRef.current.pause = true;
+      }
+      if (e.code === 'Enter') {
+        e.preventDefault();
+        inputRef.current.enter = true;
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -129,7 +155,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     };
   }, [initAudio, toggleMute]);
 
-  // Resize
   useEffect(() => {
     fitCanvas();
     const ro = new ResizeObserver(fitCanvas);
@@ -143,18 +168,20 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     };
   }, [fitCanvas, canvasRef]);
 
-  // Start loop
   useEffect(() => {
     lastRef.current = performance.now();
     rafRef.current  = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
   }, [loop]);
 
-  // Touch / on-screen controls
   const handleTouchLeft  = useCallback((down: boolean) => { inputRef.current.left  = down; void initAudio(); }, [initAudio]);
   const handleTouchRight = useCallback((down: boolean) => { inputRef.current.right = down; void initAudio(); }, [initAudio]);
   const handleTouchFire  = useCallback(() => { inputRef.current.fire = true; inputRef.current.fireHeld = true; void initAudio(); }, [initAudio]);
   const handleTouchFireUp = useCallback(() => { inputRef.current.fireHeld = false; }, []);
 
-  return { handleTouchLeft, handleTouchRight, handleTouchFire, handleTouchFireUp, toggleMute, muted };
+  return {
+    handleTouchLeft, handleTouchRight, handleTouchFire, handleTouchFireUp,
+    toggleMute, muted,
+    sfxVol, musicVol, handleSfxVol, handleMusicVol,
+  };
 }

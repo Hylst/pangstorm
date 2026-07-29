@@ -1,3 +1,4 @@
+// tout le rendu canvas — du pixel au glow
 import { GameState, Hook, ONBOARDING_STEPS } from './types';
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT,
@@ -10,7 +11,6 @@ import { getTheme, LevelTheme } from './themes';
 import { GameAssets } from './assets';
 import { getPowerUpColor, getPowerUpSymbol } from './powerups';
 
-// helpers graphiques à l'arrache
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -34,14 +34,15 @@ function drawBallTrail(ctx: CanvasRenderingContext2D, trail: { x: number; y: num
   ctx.restore();
 }
 
-// le glow qui claque
 function drawGlowCircle(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, r: number,
   color: string, flash: number, rotation: number, time: number,
+  remainingHits: number,
 ) {
   const rgb = hexToRgb(color);
 
+  // glow extérieur
   const grd = ctx.createRadialGradient(x, y, r * 0.1, x, y, r * 2.6);
   grd.addColorStop(0,   `rgba(${rgb},${0.42 + flash * 0.55})`);
   grd.addColorStop(0.5, `rgba(${rgb},${0.15 + flash * 0.25})`);
@@ -51,6 +52,7 @@ function drawGlowCircle(
   ctx.fillStyle = grd;
   ctx.fill();
 
+  // corps
   const bodyGrd = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.05, x, y, r);
   bodyGrd.addColorStop(0, `rgba(255,255,255,0.9)`);
   bodyGrd.addColorStop(0.35, color);
@@ -60,6 +62,7 @@ function drawGlowCircle(
   ctx.fillStyle = bodyGrd;
   ctx.fill();
 
+  // dash arc décoratif
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(rotation);
@@ -71,12 +74,14 @@ function drawGlowCircle(
   ctx.stroke();
   ctx.restore();
 
+  // pulse central
   const pulse = 0.8 + 0.2 * Math.sin(time * 6 + x * 0.01);
   ctx.beginPath();
   ctx.arc(x, y, r * 0.35 * pulse, 0, Math.PI * 2);
   ctx.fillStyle = `rgba(255,255,255,${0.25 + flash * 0.25})`;
   ctx.fill();
 
+  // contour
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
   ctx.strokeStyle = flash > 0.1 ? '#fff' : color;
@@ -84,10 +89,30 @@ function drawGlowCircle(
   ctx.setLineDash([]);
   ctx.stroke();
 
+  // reflet
   ctx.beginPath();
   ctx.arc(x - r * 0.32, y - r * 0.30, r * 0.18, 0, Math.PI * 2);
   ctx.fillStyle = `rgba(255,255,255,${0.5 + flash * 0.35})`;
   ctx.fill();
+
+  // anneau multi-hit (bouclier visuel)
+  if (remainingHits > 1) {
+    const ringPulse = 0.85 + 0.15 * Math.sin(time * 5 + x);
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.25 * ringPulse, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,0.5)`;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // petit chiffre indiquant les hits restants
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = 'bold 11px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${remainingHits}`, x, y + r * 1.6);
+  }
 }
 
 function drawPlayer(ctx: CanvasRenderingContext2D, x: number, y: number, squash: number, charge: number, invincible: number, shielded: boolean, time: number) {
@@ -212,7 +237,6 @@ function drawHook(ctx: CanvasRenderingContext2D, hook: Hook) {
   ctx.restore();
 }
 
-// petit coeur pour les vies — parce que ♥ > nombre
 function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, filled: boolean) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -237,7 +261,6 @@ function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: 
   ctx.restore();
 }
 
-// sol + plafond néon, la base
 function drawFloorCeiling(ctx: CanvasRenderingContext2D, theme: LevelTheme, time: number) {
   const cGrd = ctx.createLinearGradient(0, CEILING_Y - 10, 0, CEILING_Y + 6);
   cGrd.addColorStop(0, 'rgba(0,0,0,0)');
@@ -251,7 +274,6 @@ function drawFloorCeiling(ctx: CanvasRenderingContext2D, theme: LevelTheme, time
   ctx.fillStyle = fGrd;
   ctx.fillRect(0, FLOOR_Y - 6, LOGICAL_WIDTH, 36);
 
-  // lignes néon qui palpitent — *vibes*
   const glow = 0.7 + 0.3 * Math.sin(time * 3);
   ctx.fillStyle = theme.floorGlow;
   ctx.shadowColor = theme.floorGlow;
@@ -261,24 +283,24 @@ function drawFloorCeiling(ctx: CanvasRenderingContext2D, theme: LevelTheme, time
   ctx.shadowBlur = 0;
 }
 
-// fond + étoiles qui scintillent
 function drawBackground(ctx: CanvasRenderingContext2D, theme: LevelTheme, assets: GameAssets, level: number, time: number) {
-  const bgImg = assets.backgrounds[theme.bgIndex];
-  if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
-    const parallaxX = Math.sin(time * 0.1) * 10;
-    const parallaxY = Math.cos(time * 0.08) * 6;
-    ctx.save();
-    ctx.globalAlpha = 0.65;
-    ctx.drawImage(bgImg, parallaxX - 8, parallaxY - 6, LOGICAL_WIDTH + 16, LOGICAL_HEIGHT + 12);
-    ctx.restore();
+  if (theme.bgIndex >= 0) {
+    const bgImg = assets.backgrounds[theme.bgIndex];
+    if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
+      const parallaxX = Math.sin(time * 0.1) * 10;
+      const parallaxY = Math.cos(time * 0.08) * 6;
+      ctx.save();
+      ctx.globalAlpha = 0.65;
+      ctx.drawImage(bgImg, parallaxX - 8, parallaxY - 6, LOGICAL_WIDTH + 16, LOGICAL_HEIGHT + 12);
+      ctx.restore();
+    } else {
+      drawFallbackBg(ctx, theme);
+    }
   } else {
-    const bg = ctx.createLinearGradient(0, 0, 0, LOGICAL_HEIGHT);
-    bg.addColorStop(0, theme.fallbackTop);
-    bg.addColorStop(1, theme.fallbackBottom);
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    drawFallbackBg(ctx, theme);
   }
 
+  // étoiles scintillantes
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   for (let i = 0; i < 90; i++) {
     const sx = ((Math.sin(i * 127.1 + level) * 0.5 + 0.5) * LOGICAL_WIDTH) | 0;
@@ -294,6 +316,14 @@ function drawBackground(ctx: CanvasRenderingContext2D, theme: LevelTheme, assets
   ctx.fillStyle = theme.accent;
   ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
   ctx.restore();
+}
+
+function drawFallbackBg(ctx: CanvasRenderingContext2D, theme: LevelTheme) {
+  const bg = ctx.createLinearGradient(0, 0, 0, LOGICAL_HEIGHT);
+  bg.addColorStop(0, theme.fallbackTop);
+  bg.addColorStop(1, theme.fallbackBottom);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 }
 
 function drawAmbient(ctx: CanvasRenderingContext2D, state: GameState) {
@@ -337,10 +367,12 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number) 
   ctx.fillStyle = 'rgba(200,220,255,0.5)';
   ctx.fillText(theme.name.toUpperCase(), LOGICAL_WIDTH / 2, 50);
 
+  // nombre max de coeurs affichés = MAX_LIVES (pas forcément le nombre de vies)
   const heartSize = 18;
+  const displayLives = Math.min(player.lives, MAX_LIVES);
   const heartStartX = LOGICAL_WIDTH - 16 - MAX_LIVES * (heartSize + 6);
   for (let i = 0; i < MAX_LIVES; i++) {
-    drawHeart(ctx, heartStartX + i * (heartSize + 6) + heartSize / 2, 30, heartSize, i < player.lives);
+    drawHeart(ctx, heartStartX + i * (heartSize + 6) + heartSize / 2, 30, heartSize, i < displayLives);
   }
 
   const fx = state.effects;
@@ -353,6 +385,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number) 
     [fx.slowMoTimer > 0, '◷', '#00e5ff'],
     [fx.shieldTimer > 0, '◈', '#39ff14'],
     [fx.scoreBoostTimer > 0, '★', '#a259ff'],
+    [fx.magnetTimer > 0, '🧲', '#ff88cc'],
   ];
   for (const [active, sym, col] of icons) {
     if (active) {
@@ -382,7 +415,6 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number) 
   }
 }
 
-// popups de score qui flottent vers le haut
 function drawFloaters(ctx: CanvasRenderingContext2D, state: GameState) {
   for (const f of state.floaters) {
     const alpha = Math.min(1, f.life / f.maxLife);
@@ -400,7 +432,6 @@ function drawFloaters(ctx: CanvasRenderingContext2D, state: GameState) {
   }
 }
 
-// notifications style carte à collectionner (dans le coin pour pas gêner)
 function drawMilestones(ctx: CanvasRenderingContext2D, state: GameState) {
   let y = 76;
   for (const m of state.milestones) {
@@ -416,7 +447,6 @@ function drawMilestones(ctx: CanvasRenderingContext2D, state: GameState) {
     const bw = 320;
     const bh = 64;
 
-    // Card background
     ctx.fillStyle = 'rgba(10,12,28,0.92)';
     ctx.strokeStyle = m.color;
     ctx.lineWidth = 2;
@@ -465,7 +495,6 @@ function drawLevelIntro(ctx: CanvasRenderingContext2D, state: GameState, theme: 
   ctx.save();
   ctx.globalAlpha = alpha;
 
-  // Banner
   ctx.fillStyle = 'rgba(5,8,20,0.5)';
   ctx.fillRect(0, cy - 70, LOGICAL_WIDTH, 140);
 
@@ -598,7 +627,106 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   ctx.fillText(line, x, yy);
 }
 
-// title, game over, level up — tout l'UI overlay
+function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+  if (state.phase !== 'paused') return;
+  ctx.fillStyle = 'rgba(3,4,15,0.82)';
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+  const cx = LOGICAL_WIDTH / 2;
+  const cy = LOGICAL_HEIGHT / 2;
+  const pulse = 0.92 + 0.08 * Math.sin(time * 3);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(pulse, pulse);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 68px "Courier New", monospace';
+  ctx.fillStyle = '#4488ff';
+  ctx.shadowColor = '#4488ff';
+  ctx.shadowBlur = 40;
+  ctx.fillText('PAUSE', 0, -10);
+  ctx.restore();
+
+  ctx.font = '18px "Courier New", monospace';
+  ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
+  ctx.shadowBlur = 0;
+  ctx.fillText('P POUR REPRENDRE', cx, cy + 50);
+  ctx.fillText('Q POUR QUITTER', cx, cy + 80);
+}
+
+function drawLevelSelect(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+  if (state.phase !== 'levelselect') return;
+  ctx.fillStyle = 'rgba(3,4,15,0.90)';
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+  const cx = LOGICAL_WIDTH / 2;
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 42px "Courier New", monospace';
+  ctx.fillStyle = '#c0d8ff';
+  ctx.shadowColor = '#4488ff';
+  ctx.shadowBlur = 24;
+  ctx.fillText('SÉLECTION DU NIVEAU', cx, 70);
+  ctx.shadowBlur = 0;
+
+  // grille de niveaux débloqués
+  const maxUnlocked = state.maxLevelReached;
+  const cols = 5;
+  const cellW = 120;
+  const cellH = 100;
+  const gap = 16;
+  const gridW = cols * (cellW + gap) - gap;
+  const startX = (LOGICAL_WIDTH - gridW) / 2;
+  const startY = 140;
+
+  for (let i = 0; i < Math.min(maxUnlocked, 20); i++) {
+    const lvl = i + 1;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = startX + col * (cellW + gap);
+    const y = startY + row * (cellH + gap);
+
+    const starData = state.levelStars.find(ls => ls.level === lvl);
+    const stars = starData?.stars ?? 0;
+
+    // fond du bouton
+    const hover = false; // pas de hover sur canvas
+    ctx.fillStyle = stars > 0 ? 'rgba(30,50,100,0.6)' : 'rgba(20,25,50,0.5)';
+    ctx.strokeStyle = stars > 0 ? 'rgba(80,160,255,0.5)' : 'rgba(60,60,80,0.3)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, x, y, cellW, cellH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // numéro du niveau
+    ctx.fillStyle = stars > 0 ? '#c0d8ff' : '#555';
+    ctx.font = 'bold 28px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${lvl}`, x + cellW / 2, y + 38);
+
+    // étoiles
+    if (stars > 0) {
+      const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#ffdd00';
+      ctx.fillText(starStr, x + cellW / 2, y + 70);
+    }
+  }
+
+  ctx.font = '18px "Courier New", monospace';
+  ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
+  ctx.fillText('ESPACE POUR REVENIR', cx, LOGICAL_HEIGHT - 40);
+}
+
+function drawStarsSummary(ctx: CanvasRenderingContext2D, cx: number, cy: number, stars: number) {
+  ctx.font = '20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffdd00';
+  ctx.shadowColor = '#ffaa00';
+  ctx.shadowBlur = 8;
+  ctx.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), cx, cy);
+  ctx.shadowBlur = 0;
+}
+
 function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   const { phase, score, level, bestScore } = state;
   const cx = LOGICAL_WIDTH / 2;
@@ -631,6 +759,13 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
     ctx.shadowBlur = 0;
     ctx.fillText(`MEILLEUR SCORE  ${bestScore.toString().padStart(7,'0')}`, cx, cy - 30);
 
+    // étoiles totales
+    const totalStars = state.levelStars.reduce((sum, ls) => sum + ls.stars, 0);
+    const maxStars = Math.max(state.levelStars.length * 3, 1);
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.7)';
+    ctx.fillText(`ÉTOILES : ${totalStars} / ${maxStars}`, cx, cy - 8);
+
     ctx.font = '20px "Courier New", monospace';
     ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
     ctx.fillText('APPUYEZ SUR ESPACE POUR DÉMARRER', cx, cy + 10);
@@ -640,7 +775,6 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
     ctx.fillText('← → DÉPLACER   •   ESPACE TIR / CHARGER   •   M SILENCE', cx, cy + 42);
     ctx.fillText('RÉCUPÈRE LES BONUS  •  FAIS ÉCLATER TOUTES LES ORBES', cx, cy + 64);
 
-    // Credits
     ctx.font = '12px "Courier New", monospace';
     ctx.fillStyle = 'rgba(140,160,210,0.8)';
     ctx.fillText('un jeu par Hylst - Geoffroy', cx, cy + 100);
@@ -657,7 +791,7 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
       const angle = time * 0.5 + (i * Math.PI * 2) / 4;
       const dx = Math.cos(angle) * 150;
       const dy = Math.sin(angle * 0.7) * 52;
-      drawGlowCircle(ctx, cx + dx, cy - 215 + dy, 18 + i * 4, demoColors[i], 0.2, time + i, time);
+      drawGlowCircle(ctx, cx + dx, cy - 215 + dy, 18 + i * 4, demoColors[i], 0.2, time + i, time, 1);
     }
     return;
   }
@@ -665,6 +799,11 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
   if (phase === 'levelup') {
     ctx.fillStyle = 'rgba(3,4,15,0.55)';
     ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+    // étoiles du niveau
+    const stars = state.levelHits === 0 ? 3 : state.levelHits === 1 ? 2 : 1;
+    drawStarsSummary(ctx, cx, cy - 70, stars);
+
     ctx.textAlign = 'center';
     ctx.font = 'bold 58px "Courier New", monospace';
     ctx.fillStyle = '#39ff14';
@@ -695,6 +834,11 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
   if (phase === 'gameover') {
     ctx.fillStyle = 'rgba(3,4,15,0.88)';
     ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+    // étoiles du dernier niveau
+    const stars = state.levelHits === 0 ? 3 : state.levelHits === 1 ? 2 : 1;
+    drawStarsSummary(ctx, cx, cy - 100, stars);
+
     ctx.textAlign = 'center';
     ctx.font = 'bold 68px "Courier New", monospace';
     ctx.fillStyle = '#ff3a6e';
@@ -736,10 +880,9 @@ export function render(
   drawFloorCeiling(ctx, theme, time);
   drawAmbient(ctx, state);
 
-  // Balls with trails
   for (const ball of state.balls) {
     drawBallTrail(ctx, ball.trail, ball.radius, ball.color);
-    drawGlowCircle(ctx, ball.x, ball.y, ball.radius, ball.color, Math.max(0, ball.flash), ball.rotation, time);
+    drawGlowCircle(ctx, ball.x, ball.y, ball.radius, ball.color, Math.max(0, ball.flash), ball.rotation, time, ball.remainingHits);
   }
 
   drawPowerUps(ctx, state, time);
@@ -761,14 +904,14 @@ export function render(
     ctx.restore();
   }
 
-  if (state.phase === 'playing' || state.phase === 'dead' || state.phase === 'onboarding') {
+  if (state.phase === 'playing' || state.phase === 'dead' || state.phase === 'onboarding' || state.phase === 'paused') {
     drawPlayer(ctx, state.player.x, state.player.y, state.player.squash, state.player.charge, state.player.invincible, state.effects.shieldTimer > 0, time);
   }
 
   drawHUD(ctx, state, time);
   drawFloaters(ctx, state);
 
-  ctx.restore(); // end shake
+  ctx.restore();
 
   if (state.phase === 'onboarding') {
     drawOnboarding(ctx, state, time);
@@ -780,4 +923,6 @@ export function render(
 
   drawMilestones(ctx, state);
   drawOverlay(ctx, state, time);
+  drawPauseOverlay(ctx, state, time);
+  drawLevelSelect(ctx, state, time);
 }

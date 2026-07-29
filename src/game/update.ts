@@ -1,3 +1,4 @@
+// cœur de la logique — tout arrive ici
 import { GameState, Ball, InputState, ONBOARDING_STEPS } from './types';
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, FLOOR_Y, CEILING_Y,
@@ -5,7 +6,7 @@ import {
   PLAYER_SPEED, PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_Y_OFFSET,
   HOOK_SPEED, HOOK_WIDTH,
   COMBO_WINDOW,
-  BASE_SCORE,
+  BASE_SCORE, MAX_LIVES,
   TINY_RADIUS, TINY_SPEED,
 } from './constants';
 import { makeBall, makeLevelBalls, makeInitialPlayer, uid } from './initialState';
@@ -15,7 +16,6 @@ import { getDifficulty } from './levels';
 import { updatePowerUps, checkPowerUpCollection, maybeSpawnPowerUp } from './powerups';
 import { getTheme } from './themes';
 
-// clamp, la meillleure fonction
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
 
 function addFloater(state: GameState, x: number, y: number, text: string, color: string) {
@@ -35,18 +35,28 @@ function triggerShake(state: GameState, intensity: number, duration: number) {
   state.shake = { intensity, duration, elapsed: 0 };
 }
 
+function getStars(levelHits: number): number {
+  if (levelHits === 0) return 3;
+  if (levelHits === 1) return 2;
+  return 1;
+}
+
 function startLevel(state: GameState, level: number) {
+  const diff = getDifficulty(level);
   state.level = level;
-  state.difficulty = getDifficulty(level);
+  state.difficulty = diff;
   const allBalls = makeLevelBalls(level, state.player.x);
   state.hooks = [];
   state.powerUps = [];
   state.ballSpawnPulse = 1;
   state.levelIntro = 2.6;
   state.levelHits = 0;
-  state.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0 };
+  state.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0, magnetTimer: 0 };
 
-  if (state.difficulty.spawnDelay > 0) {
+  // vies de départ selon difficulté
+  state.player.lives = Math.min(diff.maxLives, MAX_LIVES);
+
+  if (diff.spawnDelay > 0) {
     state.ballsPending = allBalls;
     state.balls = state.ballsPending.splice(0, Math.min(2, state.ballsPending.length));
     state.spawnTimer = 0;
@@ -57,7 +67,6 @@ function startLevel(state: GameState, level: number) {
   playMusicForLevel(level);
 }
 
-// Ambient drifting particles for atmosphere
 function updateAmbient(state: GameState, dt: number, hue: string) {
   if (state.ambient.length < 26 && Math.random() < 0.08) {
     state.ambient.push({
@@ -90,7 +99,32 @@ export function update(
   const s = state;
   const effects = s.effects;
 
-  // slow-mo = matrix mode
+  // ── pause ──
+  if (input.pause && (s.phase === 'playing' || s.phase === 'paused')) {
+    if (s.phase === 'playing') {
+      s.prevPhase = s.phase;
+      s.phase = 'paused';
+    } else {
+      s.phase = s.prevPhase as any;
+    }
+    input.pause = false;
+  }
+  if (s.phase === 'paused') {
+    updateAmbient(s, dt, getTheme(s.level).floorGlow);
+    return s;
+  }
+
+  // ── level select ──
+  if (s.phase === 'levelselect') {
+    if (input.enter) {
+      const level = 1; // juste pour sortir du level select
+      s.phase = 'title';
+      input.enter = false;
+    }
+    return s;
+  }
+
+  // slow-mo
   const timeScale = effects.slowMoTimer > 0 ? 0.55 : 1.0;
   const effectiveDt = dt * timeScale;
 
@@ -143,6 +177,18 @@ export function update(
   if (s.phase === 'levelup') {
     s.levelTimer -= dt;
     if (s.levelTimer <= 0) {
+      // calcul des étoiles pour le niveau terminé
+      const stars = getStars(s.levelHits);
+      const existing = s.levelStars.findIndex(ls => ls.level === s.level);
+      if (existing >= 0) {
+        if (stars > s.levelStars[existing].stars) {
+          s.levelStars[existing].stars = stars;
+          s.levelStars[existing].score = s.score;
+        }
+      } else {
+        s.levelStars.push({ level: s.level, stars, score: s.score });
+      }
+
       startLevel(s, s.level + 1);
       s.phase = 'playing';
     }
@@ -151,6 +197,18 @@ export function update(
 
   if (s.phase === 'gameover') {
     if (input.fire) {
+      // enregistrer les étoiles du dernier niveau
+      const stars = getStars(s.levelHits);
+      const existing = s.levelStars.findIndex(ls => ls.level === s.level);
+      if (existing >= 0) {
+        if (stars > s.levelStars[existing].stars) {
+          s.levelStars[existing].stars = stars;
+          s.levelStars[existing].score = s.score;
+        }
+      } else {
+        s.levelStars.push({ level: s.level, stars, score: s.score });
+      }
+
       s.bestScore = Math.max(s.bestScore, s.score);
       s.phase = 'title';
       s.score = 0;
@@ -166,7 +224,7 @@ export function update(
       s.floaters = [];
       s.milestones = [];
       s.shake = { intensity: 0, duration: 0, elapsed: 0 };
-      s.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0 };
+      s.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0, magnetTimer: 0 };
       s.player = makeInitialPlayer();
       s.difficulty = getDifficulty(1);
       s.scoreMilestone = 0;
@@ -199,31 +257,23 @@ export function update(
     return s;
   }
 
-
-
   const { player } = s;
   const diff = s.difficulty;
 
-  // Update screen shake
   if (s.shake.duration > 0) {
     s.shake.elapsed += dt;
     if (s.shake.elapsed >= s.shake.duration) s.shake = { intensity: 0, duration: 0, elapsed: 0 };
   }
 
-  // Ball spawn pulse decay + level intro decay
   if (s.ballSpawnPulse > 0) s.ballSpawnPulse = Math.max(0, s.ballSpawnPulse - dt * 2);
   if (s.levelIntro > 0) s.levelIntro = Math.max(0, s.levelIntro - dt);
 
-  // Milestones life decay
   for (const m of s.milestones) m.life -= dt;
   s.milestones = s.milestones.filter(m => m.life > 0);
 
-  // Ambient particles
   updateAmbient(s, dt, getTheme(s.level).floorGlow);
 
-
   if (player.invincible > 0) player.invincible -= dt;
-
 
   const halfW = PLAYER_WIDTH / 2;
   if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
@@ -232,7 +282,6 @@ export function update(
   player.y = FLOOR_Y - PLAYER_HEIGHT / 2 - PLAYER_Y_OFFSET;
   player.squash = player.squash + (1 - player.squash) * Math.min(dt * 8, 1);
 
-
   const prevCharge = player.charge;
   if (input.fireHeld) {
     player.charge = Math.min(1, player.charge + dt * 0.8);
@@ -240,7 +289,6 @@ export function update(
   } else {
     player.charge = Math.max(0, player.charge - dt * 3);
   }
-
 
   if (input.fire && s.hooks.length < (effects.multishotTimer > 0 ? 3 : 1)) {
     const count = effects.multishotTimer > 0 ? 3 : 1;
@@ -261,14 +309,12 @@ export function update(
     playSfx(player.charge > 0.8 ? 'shot2' : 'shot');
   }
 
-
   s.hooks = s.hooks.filter(h => h.active);
   for (const hook of s.hooks) {
     if (hook.spawnScale > 1) hook.spawnScale -= dt * 3;
     hook.tipY -= HOOK_SPEED * effectiveDt;
     if (hook.tipY <= CEILING_Y) hook.active = false;
   }
-
 
   const ballsToAdd: Ball[] = [];
   const ballIdsToRemove: Set<number> = new Set();
@@ -287,7 +333,6 @@ export function update(
     ball.x += ball.vx * effectiveDt;
     ball.y += ball.vy * effectiveDt;
 
-    // Motion trail
     ball.trail.push({ x: ball.x, y: ball.y });
     if (ball.trail.length > 8) ball.trail.shift();
 
@@ -310,7 +355,6 @@ export function update(
     if (ball.flash > 0) ball.flash -= effectiveDt * 4;
   }
 
-
   for (const hook of s.hooks) {
     if (!hook.active) continue;
     for (const ball of s.balls) {
@@ -323,7 +367,6 @@ export function update(
 
         ball.remainingHits--;
         if (ball.remainingHits > 0) {
-          // multi-hit : la balle encaisse mais ne meurt pas
           ball.flash = 1;
           const kickDir = hook.x < ball.x ? 1 : -1;
           ball.vx += kickDir * 120;
@@ -359,7 +402,6 @@ export function update(
         if (ball.tier === 0) playSfx('pop');
         else playSfx('split');
 
-        // déblocage de milestones combo — *party sounds*
         if (s.combo === 5) {
           addMilestone(s, 'COMBO ×5 !', 'Bonus de rapidité', '#ffdd00');
           s.score += 250;
@@ -373,14 +415,12 @@ export function update(
           playSfx('combo');
         }
 
-        // tous les 10k points on célèbre
         const milestoneTier = Math.floor(s.score / 10000);
         if (milestoneTier > s.scoreMilestone) {
           s.scoreMilestone = milestoneTier;
           addMilestone(s, `${milestoneTier * 10000} POINTS !`, 'Continue comme ça', '#a259ff');
         }
 
-        // stats de ouf — 50/100/250 orbes pop
         if (s.totalPopped === 50) addMilestone(s, '50 ORBES !', 'Vétéran', '#39ff14');
         else if (s.totalPopped === 100) addMilestone(s, '100 ORBES !', 'As des orbes', '#00e5ff');
         else if (s.totalPopped === 250) addMilestone(s, '250 ORBES !', 'Machine à pop', '#ff3a6e');
@@ -403,12 +443,10 @@ export function update(
   s.hooks = s.hooks.filter(h => !hookIdsToRemove.has(h.id) && h.active);
   s.balls.push(...ballsToAdd);
 
-
   updatePowerUps(s, dt, effects);
   if (checkPowerUpCollection(s, player, effects)) {
     triggerShake(s, 2, 0.15);
   }
-
 
   if (player.invincible <= 0 && effects.shieldTimer <= 0) {
     for (const ball of s.balls) {
@@ -448,13 +486,11 @@ export function update(
     }
   }
 
-
   if (s.comboTimer > 0) {
     s.comboTimer -= dt;
     if (s.comboTimer <= 0) s.combo = 0;
   }
   if (s.comboDisplay > 0) s.comboDisplay -= dt;
-
 
   for (const p of s.flashParticles) {
     p.x += p.vx * dt;
@@ -464,7 +500,6 @@ export function update(
   }
   s.flashParticles = s.flashParticles.filter(p => p.life > 0);
 
-
   for (const f of s.floaters) {
     f.y -= 40 * dt;
     f.life -= dt;
@@ -473,8 +508,6 @@ export function update(
   }
   s.floaters = s.floaters.filter(f => f.life > 0);
 
-
-  // spawn échelonné (niveau 10+) — pop les balles en attente une par une
   if (s.ballsPending.length > 0 && s.phase === 'playing') {
     s.spawnTimer -= dt;
     if (s.spawnTimer <= 0) {
@@ -483,7 +516,6 @@ export function update(
       s.spawnTimer = s.difficulty.spawnDelay;
     }
   }
-
 
   if (s.balls.length === 0 && s.ballsPending.length === 0 && s.phase === 'playing') {
     s.phase = 'levelup';
@@ -497,7 +529,6 @@ export function update(
     triggerShake(s, 3, 0.25);
     playSfx('levelup');
 
-    // niveau parfait = pas pris une seule fois, chaud
     if (s.levelHits === 0) {
       addMilestone(s, 'NIVEAU PARFAIT !', `+${1000 * s.level} bonus`, '#39ff14');
       s.score += 1000 * s.level;

@@ -1,9 +1,11 @@
-import { Player, GameState } from './types';
+// power-ups : apprennent à connaître le joueur progressivement
+import { Player, GameState, FlashParticle } from './types';
 import { uid } from './initialState';
 import { LOGICAL_WIDTH, FLOOR_Y, CEILING_Y, PLAYER_WIDTH } from './constants';
 import { playSfx } from './sounds';
+import { spawnParticles, spawnRing } from './particles';
 
-export type PowerUpType = 'multishot' | 'slowmo' | 'shield' | 'extralife' | 'scoreboost';
+export type PowerUpType = 'multishot' | 'slowmo' | 'shield' | 'extralife' | 'scoreboost' | 'magnet' | 'bomb';
 
 export interface PowerUp {
   id: number;
@@ -24,6 +26,8 @@ const POWERUP_COLORS: Record<PowerUpType, string> = {
   shield: '#39ff14',
   extralife: '#ff3a6e',
   scoreboost: '#a259ff',
+  magnet: '#ff88cc',
+  bomb: '#ff4400',
 };
 
 const POWERUP_SYMBOLS: Record<PowerUpType, string> = {
@@ -32,22 +36,27 @@ const POWERUP_SYMBOLS: Record<PowerUpType, string> = {
   shield: '◈',
   extralife: '♥',
   scoreboost: '★',
+  magnet: '🧲',
+  bomb: '💥',
 };
 
 export function getPowerUpColor(type: PowerUpType) { return POWERUP_COLORS[type]; }
 export function getPowerUpSymbol(type: PowerUpType) { return POWERUP_SYMBOLS[type]; }
 
-export function spawnPowerUp(x: number, y: number, forceType?: PowerUpType): PowerUp {
+const ALL_TYPES: PowerUpType[] = ['multishot', 'slowmo', 'shield', 'scoreboost'];
+const LEVEL_TYPES: PowerUpType[] = ['multishot', 'slowmo', 'shield', 'scoreboost', 'extralife', 'magnet', 'bomb'];
+
+export function spawnPowerUp(x: number, y: number, forceType?: PowerUpType, level = 1): PowerUp {
   let type: PowerUpType;
   if (forceType) {
     type = forceType;
   } else {
-  
-    if (Math.random() < 0.08) {
+    // pool disponible selon le niveau
+    const pool = level >= 6 ? LEVEL_TYPES : level >= 3 ? [...ALL_TYPES, 'extralife'] : ALL_TYPES;
+    if (Math.random() < 0.08 && level >= 3) {
       type = 'extralife';
     } else {
-      const types: PowerUpType[] = ['multishot', 'slowmo', 'shield', 'scoreboost'];
-      type = types[Math.floor(Math.random() * types.length)];
+      type = pool[Math.floor(Math.random() * pool.length)];
     }
   }
   return {
@@ -66,7 +75,7 @@ export function spawnPowerUp(x: number, y: number, forceType?: PowerUpType): Pow
 export function maybeSpawnPowerUp(state: GameState, x: number, y: number) {
   const chance = state.difficulty.powerUpChance ?? 0.15;
   if (Math.random() < chance) {
-    state.powerUps.push(spawnPowerUp(x, y));
+    state.powerUps.push(spawnPowerUp(x, y, undefined, state.level));
   }
 }
 
@@ -75,15 +84,15 @@ export interface ActiveEffects {
   slowMoTimer: number;
   shieldTimer: number;
   scoreBoostTimer: number;
+  magnetTimer: number;
 }
 
-// les bonus tombent, faut les chopper
 export function updatePowerUps(state: GameState, dt: number, effects: ActiveEffects) {
-  // Update effect timers
   if (effects.multishotTimer > 0) effects.multishotTimer -= dt;
   if (effects.slowMoTimer > 0) effects.slowMoTimer -= dt;
   if (effects.shieldTimer > 0) effects.shieldTimer -= dt;
   if (effects.scoreBoostTimer > 0) effects.scoreBoostTimer -= dt;
+  if (effects.magnetTimer > 0) effects.magnetTimer -= dt;
 
   for (const p of state.powerUps) {
     p.vy += 200 * dt;
@@ -92,6 +101,17 @@ export function updatePowerUps(state: GameState, dt: number, effects: ActiveEffe
     p.life -= dt;
     p.pulse += dt * 4;
 
+    // magnet : attire les bonus vers le joueur
+    if (effects.magnetTimer > 0) {
+      const dx = state.player.x - p.x;
+      const dy = state.player.y - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 1) {
+        const pull = 180 * dt;
+        p.x += (dx / dist) * pull;
+        p.y += (dy / dist) * pull;
+      }
+    }
 
     if (p.x < p.radius) { p.x = p.radius; p.vx = Math.abs(p.vx); }
     if (p.x > LOGICAL_WIDTH - p.radius) { p.x = LOGICAL_WIDTH - p.radius; p.vx = -Math.abs(p.vx); }
@@ -124,27 +144,53 @@ export function checkPowerUpCollection(state: GameState, player: Player, effects
 
 function applyPowerUp(state: GameState, type: PowerUpType, effects: ActiveEffects) {
   playSfx('powerup');
+  const px = state.player.x;
+  const py = state.player.y - 40;
+  const floater = (text: string, color: string) => {
+    state.floaters.push({ id: uid(), x: px, y: py, text, color, life: 1.5, maxLife: 1.5, scale: 1 });
+  };
+
   switch (type) {
     case 'multishot':
       effects.multishotTimer = 8.0;
-      state.floaters.push({ id: uid(), x: state.player.x, y: state.player.y - 40, text: 'MULTI-TIR !', color: '#ffdd00', life: 1.5, maxLife: 1.5, scale: 1 });
+      floater('MULTI-TIR !', '#ffdd00');
       break;
     case 'slowmo':
       effects.slowMoTimer = 6.0;
-      state.floaters.push({ id: uid(), x: state.player.x, y: state.player.y - 40, text: 'RALENTI !', color: '#00e5ff', life: 1.5, maxLife: 1.5, scale: 1 });
+      floater('RALENTI !', '#00e5ff');
       break;
     case 'shield':
       effects.shieldTimer = 10.0;
-      state.floaters.push({ id: uid(), x: state.player.x, y: state.player.y - 40, text: 'BOUCLIER !', color: '#39ff14', life: 1.5, maxLife: 1.5, scale: 1 });
+      floater('BOUCLIER !', '#39ff14');
       break;
     case 'extralife':
       state.player.lives = Math.min(state.player.lives + 1, 5);
       playSfx('uplife');
-      state.floaters.push({ id: uid(), x: state.player.x, y: state.player.y - 40, text: '+1 VIE !', color: '#ff3a6e', life: 1.5, maxLife: 1.5, scale: 1 });
+      floater('+1 VIE !', '#ff3a6e');
       break;
     case 'scoreboost':
       effects.scoreBoostTimer = 10.0;
-      state.floaters.push({ id: uid(), x: state.player.x, y: state.player.y - 40, text: 'SCORE x2 !', color: '#a259ff', life: 1.5, maxLife: 1.5, scale: 1 });
+      floater('SCORE x2 !', '#a259ff');
+      break;
+    case 'magnet':
+      effects.magnetTimer = 8.0;
+      floater('AIMANT !', '#ff88cc');
+      break;
+    case 'bomb':
+      // détruit toutes les balles à l'écran
+      for (const b of state.balls) {
+        spawnParticles(state.flashParticles, b.x, b.y, b.glowColor, 12);
+        spawnRing(state.flashParticles, b.x, b.y, '#ffffff', 10, 100);
+      }
+      state.balls = [];
+      state.ballsPending = [];
+      floater('BOMBE !', '#ff4400');
+      triggerShake(state, 12, 0.6);
+      playSfx('levelup');
       break;
   }
+}
+
+function triggerShake(state: GameState, intensity: number, duration: number) {
+  state.shake = { intensity, duration, elapsed: 0 };
 }

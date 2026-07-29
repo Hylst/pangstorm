@@ -1,3 +1,4 @@
+// synthèse sonore à la zob — avec des maths on fait des bruits
 import { Howl } from 'howler';
 
 let _sharedCtx: AudioContext | null = null;
@@ -8,7 +9,21 @@ function audioCtx(): AudioContext {
   return _sharedCtx;
 }
 
-// synthèse sonore à la zob — avec des maths on fait des bruits
+// volumes séparés SFX / musique
+let _sfxVol   = 0.5;
+let _musicVol = 0.22;
+
+export function getSfxVolume()   { return _sfxVol; }
+export function getMusicVolume() { return _musicVol; }
+export function setSfxVolume(v: number) {
+  _sfxVol = Math.max(0, Math.min(1, v));
+  Object.values(soundBank).forEach(h => h.volume(_sfxVol));
+}
+export function setMusicVolume(v: number) {
+  _musicVol = Math.max(0, Math.min(1, v));
+  musicTracks.forEach(t => t.volume(_musicVol));
+}
+
 function generateTone(
   duration: number,
   freqStart: number,
@@ -93,13 +108,12 @@ function generateSweep(duration: number, freqStart: number, freqEnd: number, vol
     const progress = i / frames;
     const t = i / sampleRate;
     const freq = freqStart * Math.pow(freqEnd / freqStart, progress);
-    const env = Math.sin(progress * Math.PI); // swell in and out
+    const env = Math.sin(progress * Math.PI);
     data[i] = Math.sin(t * freq * Math.PI * 2) * env * vol;
   }
   return URL.createObjectURL(new Blob([toWav(buffer)], { type: 'audio/wav' }));
 }
 
-// convertir un AudioBuffer en WAV, à l'arrache
 function toWav(buffer: AudioBuffer): ArrayBuffer {
   const numOfChan = buffer.numberOfChannels;
   const length = buffer.length * numOfChan * 2 + 44;
@@ -141,7 +155,7 @@ let _stopTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function ensureSound(name: string, url: string, vol = 0.5) {
   if (!soundBank[name]) {
-    soundBank[name] = new Howl({ src: [url], format: ['wav'], volume: vol });
+    soundBank[name] = new Howl({ src: [url], format: ['wav'], volume: vol * _sfxVol });
   }
 }
 
@@ -160,6 +174,7 @@ export async function initSounds() {
   ensureSound('charge',    generateSweep(0.5, 200, 1200, 0.10));
   ensureSound('combo',     generateChord(0.3, [784, 988, 1318], 'square', 0.14));
   ensureSound('milestone', generateChord(0.7, [523, 659, 784, 1046, 1318], 'square', 0.18));
+  ensureSound('bomb',      generateNoise(0.8, 0.30, 60));
 }
 
 export function playSfx(name: keyof typeof soundBank) {
@@ -169,43 +184,38 @@ export function playSfx(name: keyof typeof soundBank) {
 
 interface TrackSpec {
   bpm: number;
-  bass: number[];     // 16 steps
-  arp: number[];      // 16 steps
-  lead: number[];     // 16 steps (0 = rest)
+  bass: number[];
+  arp: number[];
+  lead: number[];
   drumStyle: 'house' | 'break' | 'four' | 'trap';
   mood: 'bright' | 'dark' | 'warm' | 'cold' | 'epic';
 }
 
 const TRACKS: TrackSpec[] = [
-  // 0 - Cyber city (bright house)
   {
     bpm: 124, drumStyle: 'house', mood: 'bright',
     bass: [110,0,110,0, 146.8,0,146.8,0, 98,0,98,0, 130.8,0,130.8,0],
     arp:  [523,659,784,1046, 659,784,1046,1318, 784,659,523,659, 1046,784,659,523],
     lead: [1046,0,1318,0, 0,1568,0,1318, 1046,0,880,0, 659,784,988,1046],
   },
-  // 1 - Magma (dark break)
   {
     bpm: 138, drumStyle: 'break', mood: 'dark',
     bass: [82.4,82.4,0,82.4, 110,0,110,110, 73.4,0,73.4,0, 98,98,0,98],
     arp:  [440,523,659,523, 440,587,659,587, 392,494,587,494, 349,440,523,440],
     lead: [880,0,1046,880, 0,659,587,0, 784,0,659,0, 523,587,659,784],
   },
-  // 2 - Bio lumen (warm)
   {
     bpm: 116, drumStyle: 'four', mood: 'warm',
     bass: [146.8,0,146.8,0, 196,0,196,0, 164.8,0,164.8,0, 220,0,220,0],
     arp:  [523,659,784,659, 587,740,880,740, 659,784,988,784, 587,740,880,740],
     lead: [784,0,988,0, 880,0,784,0, 659,587,523,0, 659,784,880,988],
   },
-  // 3 - Crystal (cold)
   {
     bpm: 108, drumStyle: 'four', mood: 'cold',
     bass: [130.8,0,164.8,0, 196,0,164.8,0, 130.8,0,164.8,0, 196,0,246.9,0],
     arp:  [659,0,784,0, 988,0,784,0, 659,0,880,0, 1046,0,880,0],
     lead: [1046,0,0,1318, 0,1568,0,0, 1175,0,1046,0, 880,988,1046,1318],
   },
-  // 4 - Nebula (epic)
   {
     bpm: 132, drumStyle: 'trap', mood: 'epic',
     bass: [55,0,65.4,0, 82.4,0,98,0, 110,0,98,0, 82.4,0,65.4,0],
@@ -219,7 +229,7 @@ function generateMusicTrack(spec: TrackSpec, duration: number): string {
   const sampleRate = ctx.sampleRate;
   const frames = Math.floor(sampleRate * duration);
   const buffer = ctx.createBuffer(2, frames, sampleRate);
-  const beatDuration = 60 / spec.bpm / 4; // 16th note
+  const beatDuration = 60 / spec.bpm / 4;
 
   for (let c = 0; c < 2; c++) {
     const data = buffer.getChannelData(c);
@@ -228,8 +238,8 @@ function generateMusicTrack(spec: TrackSpec, duration: number): string {
       const t = i / sampleRate;
       const step16 = Math.floor(t / beatDuration);
       const step = step16 % 16;
-      const phaseIn16 = (t / beatDuration) - step16; // 0..1 within a 16th
-      const phaseInBeat = ((t / beatDuration) % 4) / 4; // 0..1 within a beat (4 sixteenths)
+      const phaseIn16 = (t / beatDuration) - step16;
+      const phaseInBeat = ((t / beatDuration) % 4) / 4;
 
       let out = 0;
 
@@ -280,8 +290,8 @@ function generateMusicTrack(spec: TrackSpec, duration: number): string {
 export async function initMusic() {
   if (musicTracks.length > 0) return;
   for (const spec of TRACKS) {
-    const url = generateMusicTrack(spec, 19.2); // 19.2s loops cleanly
-    musicTracks.push(new Howl({ src: [url], format: ['wav'], loop: true, volume: 0.22 }));
+    const url = generateMusicTrack(spec, 19.2);
+    musicTracks.push(new Howl({ src: [url], format: ['wav'], loop: true, volume: _musicVol }));
   }
 }
 
@@ -293,9 +303,9 @@ export function playMusicForLevel(level: number) {
   musicTracks.forEach((t, i) => {
     if (i === idx) {
       if (!t.playing()) t.play();
-      t.fade(0, 0.22, 900);
+      t.fade(0, _musicVol, 900);
     } else {
-      if (t.playing()) t.fade(0.22, 0, 600);
+      if (t.playing()) t.fade(_musicVol, 0, 600);
       _stopTimeout = setTimeout(() => t.stop(), 700);
     }
   });
@@ -310,12 +320,4 @@ export function stopMusic() {
 
 export function toggleMusic(mute: boolean) {
   musicTracks.forEach(t => t.mute(mute));
-}
-
-export function setMusicVolume(vol: number) {
-  musicTracks.forEach(t => t.volume(vol));
-}
-
-export function setSfxVolume(vol: number) {
-  Object.values(soundBank).forEach(h => h.volume(vol));
 }

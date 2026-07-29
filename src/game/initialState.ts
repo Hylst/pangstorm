@@ -66,7 +66,7 @@ export function makeInitialPlayer(): Player {
   return {
     x: LOGICAL_WIDTH / 2,
     y: FLOOR_Y - PLAYER_HEIGHT / 2 - PLAYER_Y_OFFSET,
-    lives: MAX_LIVES,
+    lives: 3,
     invincible: 0,
     squash: 1,
     charge: 0,
@@ -92,6 +92,7 @@ export function makeInitialState(): GameState {
       slowMoTimer: 0,
       shieldTimer: 0,
       scoreBoostTimer: 0,
+      magnetTimer: 0,
     },
     nextId: 1,
     flashParticles: [],
@@ -113,5 +114,7 @@ export function makeInitialState(): GameState {
     ambient: [],
     ballsPending: [],
     spawnTimer: 0,
+    levelStars: [],
+    prevPhase: 'title',
   };
 }

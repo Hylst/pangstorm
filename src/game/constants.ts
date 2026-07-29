@@ -31,13 +31,13 @@ export const BALL_COLORS: Record<number, string[]> = {
 export const HOOK_SPEED     = 1100;
 export const HOOK_WIDTH     = 3;
 
-export const MAX_LIVES      = 3;
+export const MAX_LIVES      = 5;    // départ 3, bonus vie jusqu'à 5
 export const COMBO_WINDOW   = 2.5;
 
 export const FLOOR_Y        = LOGICAL_HEIGHT - 40;
 export const CEILING_Y      = 50;
 
-export const BASE_SCORE: Record<number, number> = { 3: 100, 2: 250, 1: 600, 0: 1200 }; // 0 = tiny, les plus relous
+export const BASE_SCORE: Record<number, number> = { 3: 100, 2: 250, 1: 600, 0: 1200 };
 
 export const TINY_RADIUS = 9;
 export const TINY_SPEED  = 240;

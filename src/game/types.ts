@@ -21,7 +21,7 @@ export interface Ball {
   rotSpeed: number;
   homing: boolean;
   trail: { x: number; y: number }[];
-  remainingHits: number; // >1 = multi-hit (niveau 7+)
+  remainingHits: number; // >1 = multi-hit
 }
 
 export interface Hook {
@@ -44,7 +44,7 @@ export interface Player {
   charge: number;
 }
 
-export type GamePhase = 'title' | 'onboarding' | 'playing' | 'dead' | 'levelup' | 'gameover';
+export type GamePhase = 'title' | 'onboarding' | 'playing' | 'paused' | 'dead' | 'levelup' | 'gameover' | 'levelselect';
 
 export interface OnboardingStep {
   id: number;
@@ -70,6 +70,12 @@ export interface Milestone {
   life: number;
   maxLife: number;
   color: string;
+}
+
+export interface LevelStar {
+  level: number;
+  stars: number; // 0-3
+  score: number;
 }
 
 export interface GameState {
@@ -105,6 +111,8 @@ export interface GameState {
   ambient:       Ambient[];
   ballsPending:  Ball[];
   spawnTimer:    number;
+  levelStars:    LevelStar[];    // stars per level
+  prevPhase:     GamePhase;      // pour restaurer après pause
 }
 
 export interface Ambient {
@@ -148,9 +156,11 @@ export interface Floater {
 }
 
 export interface InputState {
-  left:  boolean;
-  right: boolean;
-  fire:  boolean;
+  left:     boolean;
+  right:    boolean;
+  fire:     boolean;
   fireHeld: boolean;
-  mute: boolean;
+  mute:     boolean;
+  pause:    boolean; // toggle pause
+  enter:    boolean; // one-shot pour menus
 }

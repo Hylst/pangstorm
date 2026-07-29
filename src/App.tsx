@@ -2,7 +2,6 @@ import { useRef } from 'react';
 import { useGame } from './game/useGame';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './game/constants';
 
-// ─── On-screen button ────────────────────────────────────────────────────────
 interface TouchBtnProps {
   label: string;
   onDown?: () => void;
@@ -34,10 +33,32 @@ function TouchBtn({ label, onDown, onUp, onClick, className = '', style = {} }: 
   );
 }
 
-// ─── App ─────────────────────────────────────────────────────────────────────
+function VolumeSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ color: 'rgba(200,220,255,0.6)', fontSize: 11, fontFamily: '"Courier New", monospace', minWidth: 30 }}>
+        {label}
+      </span>
+      <input
+        type="range"
+        min="0"
+        max="1"
+        step="0.05"
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: 60, height: 4, accentColor: '#4488ff', cursor: 'pointer' }}
+      />
+    </div>
+  );
+}
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { handleTouchLeft, handleTouchRight, handleTouchFire, handleTouchFireUp, toggleMute, muted } = useGame(canvasRef);
+  const {
+    handleTouchLeft, handleTouchRight, handleTouchFire, handleTouchFireUp,
+    toggleMute, muted,
+    sfxVol, musicVol, handleSfxVol, handleMusicVol,
+  } = useGame(canvasRef);
 
   return (
     <div
@@ -53,7 +74,6 @@ export default function App() {
         position: 'relative',
       }}
     >
-      {/* Top bar with mute + title */}
       <div
         style={{
           width: '100%',
@@ -77,24 +97,32 @@ export default function App() {
         >
           PANG GENESIS <span style={{ color: 'rgba(120,140,200,0.6)', fontWeight: 'normal' }}>— Hylst</span>
         </span>
-        <button
-          onClick={toggleMute}
-          style={{
-            background: 'rgba(80,120,255,0.18)',
-            border: '1px solid rgba(100,160,255,0.35)',
-            color: '#c0d8ff',
-            borderRadius: 8,
-            padding: '4px 10px',
-            fontSize: 12,
-            fontFamily: '"Courier New", monospace',
-            cursor: 'pointer',
-          }}
-        >
-          {muted ? '🔇 SON OFF' : '🔊 SON'}
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* sliders de volume */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <VolumeSlider label="SFX" value={sfxVol} onChange={handleSfxVol} />
+            <VolumeSlider label="MUS" value={musicVol} onChange={handleMusicVol} />
+          </div>
+
+          <button
+            onClick={toggleMute}
+            style={{
+              background: 'rgba(80,120,255,0.18)',
+              border: '1px solid rgba(100,160,255,0.35)',
+              color: '#c0d8ff',
+              borderRadius: 8,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontFamily: '"Courier New", monospace',
+              cursor: 'pointer',
+            }}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+        </div>
       </div>
 
-      {/* Game canvas container */}
       <div
         style={{
           position: 'relative',
@@ -114,7 +142,6 @@ export default function App() {
         />
       </div>
 
-      {/* Mobile controls */}
       <div
         style={{
           width: '100%',
@@ -150,7 +177,6 @@ export default function App() {
         />
       </div>
 
-      {/* Keyboard hint (desktop only) */}
       <div
         style={{
           color: 'rgba(80,120,200,0.55)',
@@ -162,7 +188,7 @@ export default function App() {
         }}
         className="keyboard-hint"
       >
-        ← → DÉPLACER &nbsp;|&nbsp; ESPACE / CLIC TIRER &nbsp;|&nbsp; M SILENCE
+        ← → DÉPLACER &nbsp;|&nbsp; ESPACE / CLIC TIRER &nbsp;|&nbsp; M SILENCE &nbsp;|&nbsp; P PAUSE
       </div>
 
       <style>{`
@@ -171,6 +197,20 @@ export default function App() {
         }
         @media (hover: none) or (pointer: coarse) {
           .keyboard-hint { display: none !important; }
+        }
+        input[type="range"] { background: transparent; }
+        input[type="range"]::-webkit-slider-runnable-track {
+          height: 4px;
+          background: rgba(80,120,200,0.3);
+          border-radius: 2px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          height: 12px;
+          width: 12px;
+          border-radius: 50%;
+          background: '#4488ff';
+          margin-top: -4px;
         }
       `}</style>
     </div>
