@@ -15,6 +15,7 @@ import { getDifficulty } from './levels';
 import { updatePowerUps, checkPowerUpCollection, maybeSpawnPowerUp } from './powerups';
 import { getTheme } from './themes';
 
+// clamp, la meillleure fonction
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
 
 function addFloater(state: GameState, x: number, y: number, text: string, color: string) {
@@ -80,7 +81,7 @@ export function update(
   const s = state;
   const effects = s.effects;
 
-  // Time dilation from slow-mo power-up
+  // slow-mo = matrix mode
   const timeScale = effects.slowMoTimer > 0 ? 0.55 : 1.0;
   const effectiveDt = dt * timeScale;
 
@@ -159,6 +160,8 @@ export function update(
       s.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0 };
       s.player = makeInitialPlayer();
       s.difficulty = getDifficulty(1);
+      s.scoreMilestone = 0;
+      s.totalPopped = 0;
     }
     return s;
   }
@@ -231,7 +234,7 @@ export function update(
   if (input.fire && s.hooks.length < (effects.multishotTimer > 0 ? 3 : 1)) {
     const count = effects.multishotTimer > 0 ? 3 : 1;
     for (let i = 0; i < count; i++) {
-      const spread = count === 1 ? 0 : (i - 1) * 14;
+      const spread = count === 1 ? 0 : (i - 1) * 40;
       s.hooks.push({
         id: uid(),
         x: player.x + spread,
@@ -320,15 +323,20 @@ export function update(
         s.score += gained;
 
         addFloater(s, ball.x, ball.y - ball.radius - 10, `+${gained}`, ball.glowColor);
-        spawnParticles(s.flashParticles, ball.x, ball.y, ball.glowColor, 16);
-        spawnRing(s.flashParticles, ball.x, ball.y, '#ffffff', 12, 80);
+        if (ball.tier === 0) {
+          spawnParticles(s.flashParticles, ball.x, ball.y, '#ffffff', 8, 100, Math.PI);
+          spawnRing(s.flashParticles, ball.x, ball.y, 'rgba(255,255,200,0.8)', 6, 50);
+        } else {
+          spawnParticles(s.flashParticles, ball.x, ball.y, ball.glowColor, 16);
+          spawnRing(s.flashParticles, ball.x, ball.y, '#ffffff', 12, 80);
+        }
         triggerShake(s, 2 + ball.tier, 0.12 + ball.tier * 0.04);
         maybeSpawnPowerUp(s, ball.x, ball.y);
 
         if (ball.tier === 0) playSfx('pop');
         else playSfx('split');
 
-        // Combo milestones
+        // déblocage de milestones combo — *party sounds*
         if (s.combo === 5) {
           addMilestone(s, 'COMBO ×5 !', 'Bonus de rapidité', '#ffdd00');
           s.score += 250;
@@ -342,14 +350,14 @@ export function update(
           playSfx('combo');
         }
 
-        // Score milestones (every 10000)
+        // tous les 10k points on célèbre
         const milestoneTier = Math.floor(s.score / 10000);
         if (milestoneTier > s.scoreMilestone) {
           s.scoreMilestone = milestoneTier;
           addMilestone(s, `${milestoneTier * 10000} POINTS !`, 'Continue comme ça', '#a259ff');
         }
 
-        // Total popped milestones
+        // stats de ouf — 50/100/250 orbes pop
         if (s.totalPopped === 50) addMilestone(s, '50 ORBES !', 'Vétéran', '#39ff14');
         else if (s.totalPopped === 100) addMilestone(s, '100 ORBES !', 'As des orbes', '#00e5ff');
         else if (s.totalPopped === 250) addMilestone(s, '250 ORBES !', 'Machine à pop', '#ff3a6e');
@@ -455,7 +463,7 @@ export function update(
     triggerShake(s, 3, 0.25);
     playSfx('levelup');
 
-    // Perfect level bonus
+    // niveau parfait = pas pris une seule fois, chaud
     if (s.levelHits === 0) {
       addMilestone(s, 'NIVEAU PARFAIT !', `+${1000 * s.level} bonus`, '#39ff14');
       s.score += 1000 * s.level;

@@ -8,6 +8,7 @@ function audioCtx(): AudioContext {
   return _sharedCtx;
 }
 
+// synthèse sonore à la zob — avec des maths on fait des bruits
 function generateTone(
   duration: number,
   freqStart: number,
@@ -98,6 +99,7 @@ function generateSweep(duration: number, freqStart: number, freqEnd: number, vol
   return URL.createObjectURL(new Blob([toWav(buffer)], { type: 'audio/wav' }));
 }
 
+// convertir un AudioBuffer en WAV, à l'arrache
 function toWav(buffer: AudioBuffer): ArrayBuffer {
   const numOfChan = buffer.numberOfChannels;
   const length = buffer.length * numOfChan * 2 + 44;

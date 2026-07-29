@@ -52,11 +52,7 @@ export class Animator {
   }
 }
 
-export interface ScreenShake {
-  intensity: number;
-  duration: number;
-  elapsed: number;
-}
+import type { ScreenShake } from './types';
 
 export function applyShake(ctx: CanvasRenderingContext2D, shake: ScreenShake) {
   if (shake.duration <= 0) return;

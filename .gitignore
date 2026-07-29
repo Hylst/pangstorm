@@ -3,3 +3,15 @@ dist/
 .DS_Store
 *.log
 *.zip
+
+# Agent / IA config files — jamais push sur les repos publics
+.opencode/
+CLAUDE.md
+GEMINI.md
+AGENTS.md
+.cursorrules
+.windsurfrules
+COPILOT.md
+.cursor/
+.windsurf/
+rules.md

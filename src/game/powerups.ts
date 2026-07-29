@@ -77,6 +77,7 @@ export interface ActiveEffects {
   scoreBoostTimer: number;
 }
 
+// les bonus tombent, faut les chopper
 export function updatePowerUps(state: GameState, dt: number, effects: ActiveEffects) {
   // Update effect timers
   if (effects.multishotTimer > 0) effects.multishotTimer -= dt;

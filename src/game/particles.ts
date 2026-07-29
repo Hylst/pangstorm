@@ -1,6 +1,7 @@
 import { FlashParticle } from './types';
 import { uid } from './initialState';
 
+// particules à l'arrache — assez pour faire joli
 export function spawnParticles(
   particles: FlashParticle[],
   x: number,
@@ -26,6 +27,7 @@ export function spawnParticles(
   }
 }
 
+// anneau qui explose — *chef's kiss*
 export function spawnRing(
   particles: FlashParticle[],
   x: number,

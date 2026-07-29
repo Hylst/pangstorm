@@ -10,6 +10,7 @@ import { getTheme, LevelTheme } from './themes';
 import { GameAssets } from './assets';
 import { getPowerUpColor, getPowerUpSymbol } from './powerups';
 
+// helpers graphiques à l'arrache
 function hexToRgb(hex: string) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -33,6 +34,7 @@ function drawBallTrail(ctx: CanvasRenderingContext2D, trail: { x: number; y: num
   ctx.restore();
 }
 
+// le glow qui claque
 function drawGlowCircle(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, r: number,
@@ -210,6 +212,7 @@ function drawHook(ctx: CanvasRenderingContext2D, hook: Hook) {
   ctx.restore();
 }
 
+// petit coeur pour les vies — parce que ♥ > nombre
 function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, filled: boolean) {
   ctx.save();
   ctx.translate(cx, cy);
@@ -234,6 +237,7 @@ function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: 
   ctx.restore();
 }
 
+// sol + plafond néon, la base
 function drawFloorCeiling(ctx: CanvasRenderingContext2D, theme: LevelTheme, time: number) {
   const cGrd = ctx.createLinearGradient(0, CEILING_Y - 10, 0, CEILING_Y + 6);
   cGrd.addColorStop(0, 'rgba(0,0,0,0)');
@@ -247,7 +251,7 @@ function drawFloorCeiling(ctx: CanvasRenderingContext2D, theme: LevelTheme, time
   ctx.fillStyle = fGrd;
   ctx.fillRect(0, FLOOR_Y - 6, LOGICAL_WIDTH, 36);
 
-  // Pulsing neon lines
+  // lignes néon qui palpitent — *vibes*
   const glow = 0.7 + 0.3 * Math.sin(time * 3);
   ctx.fillStyle = theme.floorGlow;
   ctx.shadowColor = theme.floorGlow;
@@ -257,13 +261,14 @@ function drawFloorCeiling(ctx: CanvasRenderingContext2D, theme: LevelTheme, time
   ctx.shadowBlur = 0;
 }
 
+// fond + étoiles qui scintillent
 function drawBackground(ctx: CanvasRenderingContext2D, theme: LevelTheme, assets: GameAssets, level: number, time: number) {
   const bgImg = assets.backgrounds[theme.bgIndex];
   if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
     const parallaxX = Math.sin(time * 0.1) * 10;
     const parallaxY = Math.cos(time * 0.08) * 6;
     ctx.save();
-    ctx.globalAlpha = 0.75;
+    ctx.globalAlpha = 0.65;
     ctx.drawImage(bgImg, parallaxX - 8, parallaxY - 6, LOGICAL_WIDTH + 16, LOGICAL_HEIGHT + 12);
     ctx.restore();
   } else {
@@ -377,6 +382,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number) 
   }
 }
 
+// popups de score qui flottent vers le haut
 function drawFloaters(ctx: CanvasRenderingContext2D, state: GameState) {
   for (const f of state.floaters) {
     const alpha = Math.min(1, f.life / f.maxLife);
@@ -394,14 +400,15 @@ function drawFloaters(ctx: CanvasRenderingContext2D, state: GameState) {
   }
 }
 
+// notifications style carte à collectionner (dans le coin pour pas gêner)
 function drawMilestones(ctx: CanvasRenderingContext2D, state: GameState) {
-  let y = LOGICAL_HEIGHT / 2 - 120;
+  let y = 76;
   for (const m of state.milestones) {
     const p = 1 - m.life / m.maxLife;
     const slideIn = p < 0.15 ? (p / 0.15) : 1;
     const fadeOut = m.life < 0.5 ? (m.life / 0.5) : 1;
     const alpha = slideIn * fadeOut;
-    const x = LOGICAL_WIDTH / 2 + (1 - slideIn) * 200;
+    const x = LOGICAL_WIDTH - 180 + (1 - slideIn) * 200;
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -453,13 +460,13 @@ function drawLevelIntro(ctx: CanvasRenderingContext2D, state: GameState, theme: 
   const alpha = Math.min(fadeIn, fadeOut);
 
   const cx = LOGICAL_WIDTH / 2;
-  const cy = LOGICAL_HEIGHT / 2 - 30;
+  const cy = 95;
 
   ctx.save();
   ctx.globalAlpha = alpha;
 
   // Banner
-  ctx.fillStyle = 'rgba(5,8,20,0.6)';
+  ctx.fillStyle = 'rgba(5,8,20,0.5)';
   ctx.fillRect(0, cy - 70, LOGICAL_WIDTH, 140);
 
   ctx.textAlign = 'center';
@@ -591,6 +598,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   ctx.fillText(line, x, yy);
 }
 
+// title, game over, level up — tout l'UI overlay
 function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   const { phase, score, level, bestScore } = state;
   const cx = LOGICAL_WIDTH / 2;

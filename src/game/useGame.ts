@@ -67,7 +67,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     });
   }, []);
 
-  // First interaction = init audio
+  // premier clic/touche => on lance l'audio (merci les navigateurs)
   const initAudio = useCallback(async () => {
     if (audioReady) return;
     await initSounds();
