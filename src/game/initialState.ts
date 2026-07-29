@@ -1,4 +1,4 @@
-import { GameState, Player } from './types';
+import { GameState, Player, Platform } from './types';
 import {
   LOGICAL_WIDTH, FLOOR_Y, CEILING_Y,
   BALL_RADII, BALL_SPEEDS, BALL_COLORS, MAX_LIVES,
@@ -9,6 +9,8 @@ import { getDifficulty } from './levels';
 
 let _uid = 1;
 export function uid() { return _uid++; }
+
+const PLATFORM_COLORS = ['#ff6b35', '#ffdd00', '#39ff14', '#a259ff', '#00e5ff'];
 
 function randomBallColor(tier: number, idx: number): { color: string; glowColor: string } {
   const palette = BALL_COLORS[tier] ?? BALL_COLORS[1];
@@ -60,6 +62,39 @@ export function makeLevelBalls(level: number, playerX: number): import('./types'
     balls.push(makeBall(x, y, vx, 0, tier, i, Math.random() < diff.homingChance, diff.ballHealth));
   }
   return balls;
+}
+
+export function makePlatforms(level: number): Platform[] {
+  const diff = getDifficulty(level);
+  const count = diff.platformCount;
+  if (count <= 0) return [];
+
+  const platforms: Platform[] = [];
+  const playableHeight = FLOOR_Y - CEILING_Y - 60;
+
+  for (let i = 0; i < count; i++) {
+    const w = 60 + Math.floor(Math.random() * 80); // 60-140px
+    const h = 10 + Math.floor(Math.random() * 6);   // 10-15px
+    const x = 20 + Math.random() * (LOGICAL_WIDTH - w - 40);
+    // répartir les plateformes sur la hauteur, éviter le centre du joueur
+    const yOffset = 0.2 + (i / Math.max(count, 1)) * 0.5;
+    const y = CEILING_Y + 50 + playableHeight * yOffset;
+
+    const hp = 1 + Math.floor(Math.random() * diff.platformHp);
+    const colorIdx = i % PLATFORM_COLORS.length;
+
+    platforms.push({
+      id: uid(),
+      x, y, w, h,
+      hp,
+      maxHp: hp,
+      color: PLATFORM_COLORS[colorIdx],
+      glowColor: PLATFORM_COLORS[colorIdx],
+      flash: 0,
+      broken: false,
+    });
+  }
+  return platforms;
 }
 
 export function makeInitialPlayer(): Player {
@@ -116,5 +151,7 @@ export function makeInitialState(): GameState {
     spawnTimer: 0,
     levelStars: [],
     prevPhase: 'title',
+    platforms: [],
+    levelBestScores: [],
   };
 }

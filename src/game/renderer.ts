@@ -522,6 +522,43 @@ function drawLevelIntro(ctx: CanvasRenderingContext2D, state: GameState, theme: 
   ctx.restore();
 }
 
+// plateformes cassables
+function drawPlatforms(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+  for (const p of state.platforms) {
+    if (p.broken) continue;
+    const alpha = p.flash > 0 ? 0.6 + 0.4 * Math.sin(time * 40) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // corps
+    const grd = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+    grd.addColorStop(0, p.color);
+    grd.addColorStop(0.5, p.glowColor);
+    grd.addColorStop(1, p.color);
+    ctx.fillStyle = grd;
+    ctx.shadowColor = p.glowColor;
+    ctx.shadowBlur = p.flash > 0 ? 20 : 8;
+    roundRect(ctx, p.x, p.y, p.w, p.h, 3);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // ligne neon dessus
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(p.x + 4, p.y + 1, p.w - 8, 2);
+
+    // indicateur de résistance
+    if (p.maxHp > 1) {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '9px "Courier New", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${p.hp}`, p.x + p.w / 2, p.y + p.h - 2);
+    }
+
+    ctx.restore();
+    if (p.flash > 0) p.flash -= 0.05; // décroissance manuelle ici car pas dt
+  }
+}
+
 function drawPowerUps(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   for (const p of state.powerUps) {
     const pulse = 1 + 0.15 * Math.sin(time * 6 + p.id);
@@ -812,6 +849,14 @@ function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: numb
     ctx.fillStyle = '#ffdd00';
     ctx.shadowColor = '#ffaa00';
     ctx.fillText(`SUIVANT : ${getTheme(level + 1).name.toUpperCase()}`, cx, cy + 24);
+    // meilleur score de ce niveau
+    const lvlBest = state.levelBestScores.find(ls => ls.level === level);
+    if (lvlBest) {
+      ctx.font = 'bold 16px "Courier New", monospace';
+      ctx.fillStyle = '#88aaff';
+      ctx.shadowBlur = 0;
+      ctx.fillText(`RECORD NIVEAU : ${lvlBest.score.toString().padStart(7, '0')}`, cx, cy + 56);
+    }
     ctx.shadowBlur = 0;
     return;
   }
@@ -883,6 +928,7 @@ export function render(
     drawGlowCircle(ctx, ball.x, ball.y, ball.radius, ball.color, Math.max(0, ball.flash), ball.rotation, time, ball.remainingHits);
   }
 
+  drawPlatforms(ctx, state, time);
   drawPowerUps(ctx, state, time);
 
   for (const hook of state.hooks) {

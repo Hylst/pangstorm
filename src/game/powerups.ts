@@ -1,9 +1,9 @@
-// power-ups : apprennent à connaître le joueur progressivement
 import { Player, GameState } from './types';
 import { uid } from './initialState';
 import { LOGICAL_WIDTH, FLOOR_Y, CEILING_Y, PLAYER_WIDTH } from './constants';
 import { playSfx } from './sounds';
 import { spawnParticles, spawnRing } from './particles';
+import { makeBall } from './initialState';
 
 export type PowerUpType = 'multishot' | 'slowmo' | 'shield' | 'extralife' | 'scoreboost' | 'magnet' | 'bomb';
 
@@ -51,7 +51,6 @@ export function spawnPowerUp(x: number, y: number, forceType?: PowerUpType, leve
   if (forceType) {
     type = forceType;
   } else {
-    // pool disponible selon le niveau
     const pool = level >= 6 ? LEVEL_TYPES : level >= 3 ? [...ALL_TYPES, 'extralife'] : ALL_TYPES;
     if (Math.random() < 0.08 && level >= 3) {
       type = 'extralife';
@@ -79,6 +78,21 @@ export function maybeSpawnPowerUp(state: GameState, x: number, y: number) {
   }
 }
 
+export function maybeDropFromPlatform(state: GameState, x: number, y: number) {
+  const roll = Math.random();
+  if (roll < 0.35) {
+    // bonus : power-up
+    state.powerUps.push(spawnPowerUp(x, y, undefined, state.level));
+  } else if (roll < 0.55) {
+    // malus : fait apparaître une petite balle rebondissante
+    const spd = 120 + Math.random() * 60;
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    state.balls.push(makeBall(x, y, dir * spd, -80, 0, Math.floor(Math.random() * 3), false, 1));
+    playSfx('pop');
+  }
+  // sinon (45%) : rien, la plateforme disparaît
+}
+
 export interface ActiveEffects {
   multishotTimer: number;
   slowMoTimer: number;
@@ -101,7 +115,6 @@ export function updatePowerUps(state: GameState, dt: number, effects: ActiveEffe
     p.life -= dt;
     p.pulse += dt * 4;
 
-    // magnet : attire les bonus vers le joueur
     if (effects.magnetTimer > 0) {
       const dx = state.player.x - p.x;
       const dy = state.player.y - p.y;
@@ -177,7 +190,6 @@ function applyPowerUp(state: GameState, type: PowerUpType, effects: ActiveEffect
       floater('AIMANT !', '#ff88cc');
       break;
     case 'bomb':
-      // détruit toutes les balles à l'écran
       for (const b of state.balls) {
         spawnParticles(state.flashParticles, b.x, b.y, b.glowColor, 12);
         spawnRing(state.flashParticles, b.x, b.y, '#ffffff', 10, 100);

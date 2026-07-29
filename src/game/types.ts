@@ -24,6 +24,20 @@ export interface Ball {
   remainingHits: number; // >1 = multi-hit
 }
 
+export interface Platform {
+  id: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  hp: number;      // coups restants
+  maxHp: number;
+  color: string;
+  glowColor: string;
+  flash: number;
+  broken: boolean;
+}
+
 export interface Hook {
   id:     number;
   x:      number;
@@ -72,9 +86,8 @@ export interface Milestone {
   color: string;
 }
 
-export interface LevelStar {
+export interface LevelScore {
   level: number;
-  stars: number; // 0-3
   score: number;
 }
 
@@ -111,8 +124,10 @@ export interface GameState {
   ambient:       Ambient[];
   ballsPending:  Ball[];
   spawnTimer:    number;
-  levelStars:    LevelStar[];    // stars per level
-  prevPhase:     GamePhase;      // pour restaurer après pause
+  levelStars:    { level: number; stars: number; score: number }[];
+  prevPhase:     GamePhase;
+  platforms:     Platform[];
+  levelBestScores: LevelScore[];
 }
 
 export interface Ambient {
@@ -161,6 +176,6 @@ export interface InputState {
   fire:     boolean;
   fireHeld: boolean;
   mute:     boolean;
-  pause:    boolean; // toggle pause
-  enter:    boolean; // one-shot pour menus
+  pause:    boolean;
+  enter:    boolean;
 }

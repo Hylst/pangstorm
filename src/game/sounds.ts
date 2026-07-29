@@ -179,6 +179,8 @@ export async function initSounds() {
   ensureSound('combo',     generateChord(0.3, [784, 988, 1318], 'square', 0.14));
   ensureSound('milestone', generateChord(0.7, [523, 659, 784, 1046, 1318], 'square', 0.18));
   ensureSound('bomb',      generateNoise(0.8, 0.30, 60));
+  ensureSound('record',    generateSweep(0.7, 440, 1760, 0.22));
+  ensureSound('platform',  generateTone(0.2, 300, 120, 'square', 0.10, 1.5));
 }
 
 export function playSfx(name: keyof typeof soundBank) {
