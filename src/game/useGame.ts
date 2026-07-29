@@ -456,13 +456,21 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     }
     // Phase playing
     if (zone === 'move') {
-      if (!inputRef.current.joystickActive) {
+      if (optionsRef.current.controlMode === 'classic') {
+        // Mode classique : delta depuis le joueur (les boutons sont en positions fixes)
+        const dx = coords.x - stateRef.current.player.x;
+        inputRef.current.joystickDeltaX = Math.max(-1, Math.min(1, dx / JOYSTICK_RADIUS));
         inputRef.current.joystickActive = true;
-        inputRef.current.joystickCenter = { x: coords.x, y: coords.y };
+      } else {
+        // Overlay/tilt : joystick centré (delta relatif au premier contact)
+        if (!inputRef.current.joystickActive) {
+          inputRef.current.joystickActive = true;
+          inputRef.current.joystickCenter = { x: coords.x, y: coords.y };
+        }
+        const centerX = inputRef.current.joystickCenter?.x ?? coords.x;
+        const dx = coords.x - centerX;
+        inputRef.current.joystickDeltaX = Math.max(-1, Math.min(1, dx / JOYSTICK_RADIUS));
       }
-      const centerX = inputRef.current.joystickCenter?.x ?? coords.x;
-      const dx = coords.x - centerX;
-      inputRef.current.joystickDeltaX = Math.max(-1, Math.min(1, dx / JOYSTICK_RADIUS));
       touchPosRef.current = coords;
     }
     if (zone === 'fire') {
