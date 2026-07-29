@@ -643,16 +643,16 @@ export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState,
   ];
   cyy = 102;
   for (const p of pows) {
-    ctx.font = 'bold 16px sans-serif';
+    ctx.font = 'bold 18px sans-serif';
     ctx.fillStyle = p.color;
     ctx.textAlign = 'right';
-    ctx.fillText(p.sym, LOGICAL_WIDTH - 80, cyy + 4);
+    ctx.fillText(p.sym, LOGICAL_WIDTH - 100, cyy + 16);
     ctx.font = 'bold 14px "Courier New", monospace';
-    ctx.fillText(p.name, LOGICAL_WIDTH - 40, cyy);
+    ctx.fillText(p.name, LOGICAL_WIDTH - 40, cyy + 4);
     ctx.font = '13px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(200,220,255,0.7)';
-    ctx.fillText(p.desc, LOGICAL_WIDTH - 40, cyy + 16);
-    cyy += 30;
+    ctx.fillStyle = 'rgba(200,220,255,0.6)';
+    ctx.fillText(p.desc, LOGICAL_WIDTH - 40, cyy + 28);
+    cyy += 38;
   }
 
   // ─── Astuces (bas) ───
