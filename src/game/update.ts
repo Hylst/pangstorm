@@ -111,6 +111,14 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
   }
   if (s.phase === 'paused') { updateAmbient(s, dt, getTheme(s.level).floorGlow); return s; }
 
+  // info overlay (toggle with I)
+  if (input.info) {
+    if (s.phase === 'info') { s.phase = s.prevPhase; }
+    else { s.prevPhase = s.phase; s.phase = 'info'; }
+    input.info = false;
+  }
+  if (s.phase === 'info') { return s; }
+
   // level select
   if (s.phase === 'levelselect') {
     if (input.left)  s.level = Math.max(1, s.level - 1);

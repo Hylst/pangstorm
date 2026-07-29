@@ -22,7 +22,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     try { initialSt.levelBestScores = JSON.parse(savedScores); } catch {}
   }
   const stateRef  = useRef<GameState>(initialSt);
-  const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false, pause: false, enter: false });
+  const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false, pause: false, enter: false, info: false });
   const rafRef    = useRef<number>(0);
   const lastRef   = useRef<number>(0);
   const timeRef   = useRef<number>(0);
@@ -61,6 +61,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     inputRef.current.fire = false;
     inputRef.current.pause = false;
     inputRef.current.enter = false;
+    inputRef.current.info = false;
     const prevBest = stateRef.current.bestScore;
     stateRef.current = update(stateRef.current, dt, input);
     if (stateRef.current.bestScore > prevBest) {
@@ -128,6 +129,10 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       if (e.code === 'Enter') {
         e.preventDefault();
         inputRef.current.enter = true;
+      }
+      if (e.code === 'KeyI') {
+        e.preventDefault();
+        inputRef.current.info = true;
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {

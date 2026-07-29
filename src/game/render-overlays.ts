@@ -402,3 +402,99 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, tim
     return;
   }
 }
+
+export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+  if (state.phase !== 'info') return;
+  ctx.fillStyle = 'rgba(3,4,15,0.92)';
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+  ctx.textAlign = 'center';
+
+  const cx = LOGICAL_WIDTH / 2;
+  ctx.font = 'bold 30px "Courier New", monospace';
+  ctx.fillStyle = '#00e5ff';
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 18;
+  ctx.fillText('INFORMATIONS', cx, 40);
+  ctx.shadowBlur = 0;
+
+  // ─── Contrôles (gauche) ───
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillStyle = '#ffdd00';
+  ctx.fillText('CONTRÔLES', 40, 78);
+
+  const ctrls = [
+    ['← →', 'Déplacement du vaisseau'],
+    ['ESPACE', 'Tirer le grappin (maintenir = charger)'],
+    ['P', 'Pause / Reprendre'],
+    ['I', 'Écran d\'informations'],
+    ['M', 'Activer / couper le son'],
+    ['ENTRÉE', 'Menu niveaux / Retour titre'],
+  ];
+  ctx.font = '14px "Courier New", monospace';
+  let cyy = 102;
+  for (const [key, desc] of ctrls) {
+    ctx.fillStyle = '#a259ff';
+    ctx.fillText(key, 40, cyy);
+    ctx.fillStyle = 'rgba(200,220,255,0.85)';
+    ctx.fillText(desc, 220, cyy);
+    cyy += 24;
+  }
+
+  // ─── Power-ups (droite) ───
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillStyle = '#ffdd00';
+  ctx.fillText('POWER-UPS', LOGICAL_WIDTH - 40, 78);
+
+  const pows: { sym: string; name: string; desc: string; color: string }[] = [
+    { sym: '⇈', name: 'MULTI-TIR',     desc: '3 grappins par tir (8s)', color: '#ffdd00' },
+    { sym: '◷', name: 'RALENTI',        desc: 'Ralentit les balles (6s)', color: '#00e5ff' },
+    { sym: '◈', name: 'BOUCLIER',       desc: 'Protège des balles (10s)', color: '#39ff14' },
+    { sym: '♥', name: 'VIE SUPPL.',     desc: '+1 vie (max 5)',          color: '#ff3a6e' },
+    { sym: '★', name: 'SCORE ×2',       desc: 'Points doublés (10s)',    color: '#a259ff' },
+    { sym: '🧲', name: 'AIMANT',        desc: 'Attire les bonus (8s)',   color: '#ff88cc' },
+    { sym: '💥', name: 'BOMBE',         desc: 'Détruit toutes les balles', color: '#ff4400' },
+  ];
+  cyy = 102;
+  for (const p of pows) {
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = p.color;
+    ctx.textAlign = 'right';
+    ctx.fillText(p.sym, LOGICAL_WIDTH - 80, cyy + 4);
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.fillText(p.name, LOGICAL_WIDTH - 40, cyy);
+    ctx.font = '13px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.7)';
+    ctx.fillText(p.desc, LOGICAL_WIDTH - 40, cyy + 16);
+    cyy += 30;
+  }
+
+  // ─── Astuces (bas) ───
+  ctx.textAlign = 'center';
+  cyy = 340;
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillStyle = '#39ff14';
+  ctx.fillText('SYSTÈME DE SCORE', cx, cyy);
+
+  const tips = [
+    'COMBO : enchaînez les éclatements sans attendre (×multiplicateur)',
+    'HAUTEUR : les balles près du plafond rapportent jusqu\'à 1,5×',
+    'VÉLOCITÉ : les balles rapides rapportent jusqu\'à 1,3×',
+    'PRÉCISION : bonus de fin de niveau basé sur % de tirs réussis',
+    'PLATEFORMES : les plateformes peuvent droper bonus ou malus',
+    '3★ si vous ne prenez aucun dégât dans le niveau',
+  ];
+  cyy += 24;
+  for (const tip of tips) {
+    ctx.font = '13px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.8)';
+    ctx.fillText(`• ${tip}`, cx, cyy);
+    cyy += 20;
+  }
+
+  ctx.font = '16px "Courier New", monospace';
+  ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
+  ctx.shadowBlur = 0;
+  ctx.fillText('I POUR FERMER', cx, LOGICAL_HEIGHT - 24);
+}

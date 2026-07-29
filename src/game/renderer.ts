@@ -7,13 +7,13 @@ import { GameAssets } from './assets';
 import { drawBallTrail, drawGlowCircle, drawPlayer, drawHook, drawPlatforms, drawPowerUps } from './render-entities';
 import { drawBackground, drawFloorCeiling, drawAmbient } from './render-background';
 import { drawHUD } from './render-hud';
-import { drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay } from './render-overlays';
+import { drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay, drawInfoOverlay } from './render-overlays';
 
 export {
   drawBallTrail, drawGlowCircle, drawPlayer, drawHook, drawPlatforms, drawPowerUps,
   drawBackground, drawFloorCeiling, drawAmbient,
   drawHUD,
-  drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay,
+  drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay, drawInfoOverlay,
 };
 
 export function render(
@@ -65,6 +65,7 @@ export function render(
   drawOverlay(ctx, state, time);
   drawPauseOverlay(ctx, state, time);
   drawLevelSelect(ctx, state, time);
+  drawInfoOverlay(ctx, state, time);
 
   for (const p of state.flashParticles) {
     const alpha = p.life / p.maxLife;

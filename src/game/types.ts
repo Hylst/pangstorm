@@ -58,7 +58,7 @@ export interface Player {
   charge: number;
 }
 
-export type GamePhase = 'title' | 'onboarding' | 'playing' | 'paused' | 'dead' | 'levelup' | 'gameover' | 'levelselect';
+export type GamePhase = 'title' | 'onboarding' | 'playing' | 'paused' | 'dead' | 'levelup' | 'gameover' | 'levelselect' | 'info';
 
 export interface OnboardingStep {
   id: number;
@@ -180,4 +180,5 @@ export interface InputState {
   mute:     boolean;
   pause:    boolean;
   enter:    boolean;
+  info:     boolean;
 }
