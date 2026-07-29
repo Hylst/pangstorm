@@ -267,6 +267,19 @@ export function update(state: GameState, dt: number, input: InputState, options?
       player.x += Math.sign(dx) * Math.min(Math.abs(dx), maxStep);
     }
   }
+  // Tilt (accéléromètre) — mode inclinaison
+  if (options?.controlMode === 'tilt') {
+    const gamma = input.tiltGamma;
+    const deadZoneDeg = 3;
+    const maxAngle = 40;
+    const absGamma = Math.abs(gamma);
+    if (absGamma > deadZoneDeg && isFinite(gamma)) {
+      const factor = Math.min(1, (absGamma - deadZoneDeg) / (maxAngle - deadZoneDeg));
+      const sens = options?.touchSensitivity ?? 1.0;
+      const maxStep = PLAYER_SPEED * effectiveDt * sens * factor;
+      player.x += Math.sign(gamma) * maxStep;
+    }
+  }
   // Clavier toujours actif (cumulatif avec tactile si les deux sont utilisés)
   if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
   if (input.right) player.x += PLAYER_SPEED * effectiveDt;

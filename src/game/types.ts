@@ -183,6 +183,8 @@ export interface Floater {
   scale: number;
 }
 
+export type ControlMode = 'overlay' | 'classic' | 'tilt';
+
 export interface InputState {
   left:     boolean;
   right:    boolean;
@@ -199,26 +201,27 @@ export interface InputState {
   reset:    boolean;
   touchTargetX: number | null;
   touchFireHeld: boolean;
+  tiltGamma: number;
 }
 
-export const OPTIONS_VERSION = 1;
+export const OPTIONS_VERSION = 2;
 
 export interface GameOptions {
   _v?: number;
+  controlMode: ControlMode;
   invertZones: boolean;
   zoneSplitRatio: number;
   deadZonePx: number;
-  classicMode: boolean;
   touchSensitivity: number;
   chromeLess: boolean;
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
   _v: OPTIONS_VERSION,
+  controlMode: 'overlay',
   invertZones: false,
   zoneSplitRatio: 0.5,
   deadZonePx: 10,
-  classicMode: false,
   touchSensitivity: 1.0,
   chromeLess: false,
 };

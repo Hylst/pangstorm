@@ -124,7 +124,7 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
   const step = state.onboardingStep < ONBOARDING_STEPS.length ? ONBOARDING_STEPS[state.onboardingStep] : null;
   if (!step) return;
 
-  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  const isTouch = window.matchMedia('(any-pointer: coarse)').matches;
 
   ctx.fillStyle = 'rgba(3,4,15,0.82)';
   ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
@@ -264,7 +264,7 @@ export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameStat
   ctx.fillText('[ NON ]', cx + 80, cy + 30);
   ctx.shadowBlur = 0;
 
-  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  if (window.matchMedia('(any-pointer: coarse)').matches) {
     ctx.font = '12px "Courier New", monospace';
     ctx.fillStyle = `rgba(200,220,255,${0.3 + 0.3 * Math.sin(time * 3)})`;
     ctx.fillText('Toucher gauche = OUI, droite = NON', cx, cy + 65);
@@ -299,7 +299,7 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState
 
   drawPauseButtons(ctx, state, time);
 
-  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  const isTouch = window.matchMedia('(any-pointer: coarse)').matches;
   if (!isTouch) {
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = 'rgba(200,220,255,0.6)';
@@ -711,11 +711,12 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
   const rw = 360, rh = 28, rx = cx - rw / 2;
   const pulse = 0.5 + 0.5 * Math.sin(time * 3);
 
+  const modeLabels: Record<string, string> = { overlay: 'ZONES', classic: 'BOUTONS', tilt: 'INCLINAISON' };
   const optionRows = [
     { label: 'INVERSER ZONES',      value: opts.invertZones ? 'OUI' : 'NON' },
     { label: 'TAILLE ZONE DEPLAC.',  value: `${Math.round(opts.zoneSplitRatio * 100)}%` },
     { label: 'ZONE MORTE',          value: `${opts.deadZonePx}px` },
-        { label: 'BOUTONS BAS (CLASSIQUE)', value: opts.classicMode ? 'OUI' : 'NON' },
+    { label: 'CONTRÔLE',            value: modeLabels[opts.controlMode] ?? opts.controlMode },
     { label: 'SENSIBILITÉ',         value: `${opts.touchSensitivity.toFixed(1)}×` },
     { label: 'SANS CHROME',         value: opts.chromeLess ? 'OUI' : 'NON' },
   ];
@@ -759,7 +760,7 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
   ctx.textAlign = 'center';
   ctx.font = '13px "Courier New", monospace';
   ctx.fillStyle = 'rgba(200,220,255,0.45)';
-  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  const isTouch = window.matchMedia('(any-pointer: coarse)').matches;
   const hint = isTouch
     ? 'TAPER SUR UNE LIGNE POUR TOGGLER  •  O/ENTRÉE FERMER'
     : '↑↓ CURSEUR  •  ←→ TOGGLER  •  ENTRÉE/O FERMER';

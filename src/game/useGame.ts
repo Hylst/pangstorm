@@ -1,6 +1,6 @@
 // hook principal — relie React, le canvas et la boucle de jeu
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { GameState, InputState, GameOptions, DEFAULT_OPTIONS, OPTIONS_VERSION, PAUSE_BUTTONS } from './types';
+import { GameState, InputState, GameOptions, ControlMode, DEFAULT_OPTIONS, OPTIONS_VERSION, PAUSE_BUTTONS } from './types';
 import { makeInitialState } from './initialState';
 import { update, startLevel } from './update';
 import { render } from './renderer';
@@ -13,8 +13,14 @@ function loadOptions(): GameOptions {
     const raw = localStorage.getItem('pang_genesis_options');
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Migration : si la version est absente ou différente, on réinitialise
+      // Migration v1 → v2 : classicMode boolean → controlMode string
       if (parsed._v === OPTIONS_VERSION) {
+        return { ...DEFAULT_OPTIONS, ...parsed };
+      }
+      if (parsed._v === 1) {
+        parsed.controlMode = parsed.classicMode ? 'classic' : 'overlay';
+        delete parsed.classicMode;
+        parsed._v = 2;
         return { ...DEFAULT_OPTIONS, ...parsed };
       }
     }
@@ -56,6 +62,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     mute: false, pause: false, enter: false, info: false,
     options: false, quit: false, resetLevel: false, resetFull: false, reset: false,
     touchTargetX: null, touchFireHeld: false,
+    tiltGamma: 0,
   });
   const optionsRef = useRef<GameOptions>(loadOptions());
   const rafRef     = useRef<number>(0);
@@ -69,7 +76,8 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const [audioReady, setAudioReady] = useState(false);
   const [sfxVol, setSfxVolState] = useState(getSfxVolume());
   const [musicVol, setMusicVolState] = useState(getMusicVolume());
-  const [optionsVersion, setOptionsVersion] = useState(0); // force re-render quand options changent
+  const [optionsVersion, setOptionsVersion] = useState(0);
+  const [tiltEnabled, setTiltEnabled] = useState(false);
 
   const fitCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -299,7 +307,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
 
     void initAudio();
 
-    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    if (!window.matchMedia('(any-pointer: coarse)').matches) return;
 
     // Gestion des phases non-jeu
     if (phase !== 'playing' && phase !== 'paused' && phase !== 'options') {
@@ -401,7 +409,12 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
             updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
             break;
           }
-          case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+          case 3: {
+            const modes: ControlMode[] = ['overlay', 'classic', 'tilt'];
+            const ci = modes.indexOf(opts.controlMode);
+            updateOptions({ controlMode: modes[(ci + 1) % modes.length] });
+            break;
+          }
           case 4: {
             const sensitivities = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
             const si = sensitivities.indexOf(opts.touchSensitivity);
@@ -463,7 +476,12 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
           updateOptions({ deadZonePx: zones[next] });
           break;
         }
-        case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+        case 3: {
+          const modes: ControlMode[] = ['overlay', 'classic', 'tilt'];
+          const ci = modes.indexOf(opts.controlMode);
+          updateOptions({ controlMode: modes[(ci + 1) % modes.length] });
+          break;
+        }
         case 4: {
           const sensitivities = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
           const si = sensitivities.indexOf(opts.touchSensitivity);
@@ -585,6 +603,30 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     };
     }, [initAudio, toggleMute, confirmChoice, updateOptions]);
 
+  // Demande de permission accéléromètre (iOS 13+)
+  const requestTiltPermission = useCallback(async () => {
+    try {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        const result = await (DeviceOrientationEvent as any).requestPermission();
+        if (result !== 'granted') return;
+      }
+      setTiltEnabled(true);
+    } catch {}
+  }, []);
+
+  // Écouteur accéléromètre pour le mode inclinaison
+  useEffect(() => {
+    let smoothGamma = 0;
+    const onOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma === null) return;
+      smoothGamma = smoothGamma * 0.65 + e.gamma * 0.35;
+      inputRef.current.tiltGamma = smoothGamma;
+    };
+    window.addEventListener('deviceorientation', onOrientation);
+    return () => window.removeEventListener('deviceorientation', onOrientation);
+  }, []);
+
   // Bouton retour Android
   useEffect(() => {
     const onPop = () => {
@@ -648,5 +690,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     toggleFullscreen,
     handleTouchPause, handleTouchInfo,
     stateRef,
+    requestTiltPermission, tiltEnabled,
   };
 }

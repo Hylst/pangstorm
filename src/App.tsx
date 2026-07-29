@@ -23,14 +23,22 @@ function VolumeSlider({ label, value, onChange }: { label: string; value: number
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDesktop, setIsDesktop] = useState(false);
+  const [hasTouch, setHasTouch] = useState(false);
+  const [hasKeyboard, setHasKeyboard] = useState(false);
 
   useEffect(() => {
-    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const touchMq = window.matchMedia('(any-pointer: coarse)');
+    const keyboardMq = window.matchMedia('(any-pointer: fine)');
+    setHasTouch(touchMq.matches);
+    setHasKeyboard(keyboardMq.matches);
+    const onTouchChange = (e: MediaQueryListEvent) => setHasTouch(e.matches);
+    const onKeyboardChange = (e: MediaQueryListEvent) => setHasKeyboard(e.matches);
+    touchMq.addEventListener('change', onTouchChange);
+    keyboardMq.addEventListener('change', onKeyboardChange);
+    return () => {
+      touchMq.removeEventListener('change', onTouchChange);
+      keyboardMq.removeEventListener('change', onKeyboardChange);
+    };
   }, []);
 
   const {
@@ -39,12 +47,12 @@ export default function App() {
     handleTouchZone, handleTouchZoneEnd,
     optionsRef, toggleFullscreen,
     handleTouchPause, handleTouchInfo,
-    stateRef,
+    stateRef, requestTiltPermission, tiltEnabled,
   } = useGame(canvasRef);
 
   const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
     const opts = optionsRef.current;
-    const splitRatio = opts.classicMode ? 0.5 : (opts.invertZones ? 1 - opts.zoneSplitRatio : opts.zoneSplitRatio);
+    const splitRatio = opts.controlMode === 'classic' ? 0.5 : (opts.invertZones ? 1 - opts.zoneSplitRatio : opts.zoneSplitRatio);
     const leftPct = side === 'left' ? `${splitRatio * 100}%` : `${(1 - splitRatio) * 100}%`;
     return {
       position: 'absolute',
@@ -66,11 +74,23 @@ export default function App() {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   };
 
+  const mode = optionsRef.current.controlMode;
+  const isOverlay = mode === 'overlay';
+  const isClassic = mode === 'classic';
+  const isTilt = mode === 'tilt';
+
+  const fireIndicator = (
+    <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(255,150,150,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Feu</span>
+      <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,80,80,0.5)', background: 'radial-gradient(circle, rgba(255,60,60,0.35), transparent 70%)' }} />
+    </div>
+  );
+
   return (
     <div
       style={{
         width: '100vw',
-        height: '100vh',
+        height: '100dvh',
         background: '#000',
         display: 'flex',
         flexDirection: 'column',
@@ -127,23 +147,21 @@ export default function App() {
             {muted ? '🔇' : '🔊'}
           </button>
 
-          {isDesktop && (
-            <button
-              onClick={toggleFullscreen}
-              style={{
-                background: 'rgba(80,120,255,0.18)',
-                border: '1px solid rgba(100,160,255,0.35)',
-                color: '#c0d8ff',
-                borderRadius: 8,
-                padding: '4px 10px',
-                fontSize: 12,
-                fontFamily: '"Courier New", monospace',
-                cursor: 'pointer',
-              }}
-            >
-              ⛶
-            </button>
-          )}
+          <button
+            onClick={toggleFullscreen}
+            style={{
+              background: 'rgba(80,120,255,0.18)',
+              border: '1px solid rgba(100,160,255,0.35)',
+              color: '#c0d8ff',
+              borderRadius: 8,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontFamily: '"Courier New", monospace',
+              cursor: 'pointer',
+            }}
+          >
+            ⛶
+          </button>
         </div>
       </div>
 
@@ -165,8 +183,8 @@ export default function App() {
           }}
         />
 
-        {/* Zones tactiles — cachées en classicMode ou desktop */}
-        {!isDesktop && !optionsRef.current.classicMode && (
+        {/* Zones overlay (fire left + joystick right) */}
+        {hasTouch && isOverlay && (
           <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               style={getZoneStyle('left')}
@@ -183,11 +201,7 @@ export default function App() {
               onPointerLeave={(e) => handleTouchZoneEnd('move', e)}
               onPointerCancel={(e) => handleTouchZoneEnd('move', e)}
             />
-            {/* Indicateurs visuels plus visibles */}
-            <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(255,150,150,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Feu</span>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,80,80,0.5)', background: 'radial-gradient(circle, rgba(255,60,60,0.35), transparent 70%)' }} />
-            </div>
+            {fireIndicator}
             <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,200,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Dir</span>
               <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,180,255,0.5)', background: 'radial-gradient(circle, rgba(60,140,255,0.35), transparent 70%)' }} />
@@ -197,7 +211,7 @@ export default function App() {
         )}
 
         {/* Mode classique : boutons du bas */}
-        {!isDesktop && optionsRef.current.classicMode && (
+        {hasTouch && isClassic && (
           <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', padding: '0 20px', zIndex: 11 }}>
             <button style={btnStyle} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('move', e); }} onPointerUp={(e) => handleTouchZoneEnd('move', e)} onPointerLeave={(e) => handleTouchZoneEnd('move', e)}>◀</button>
             <button style={{ ...btnStyle, width: 112, height: 112, fontSize: 24 }} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('fire', e); }} onPointerLeave={(e) => handleTouchZoneEnd('fire', e)} onPointerUp={(e) => handleTouchZoneEnd('fire', e)}>🔥</button>
@@ -205,15 +219,44 @@ export default function App() {
           </div>
         )}
 
+        {/* Mode inclinaison : feu gauche + incliner droite */}
+        {hasTouch && isTilt && (
+          <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <div
+              style={getZoneStyle('left')}
+              onPointerDown={(e) => handleTouchZone('fire', e)}
+              onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
+            />
+            {fireIndicator}
+            <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,255,150,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Incliner</span>
+              <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,255,180,0.5)', background: 'radial-gradient(circle, rgba(60,255,140,0.35), transparent 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'rgba(150,255,200,0.7)' }}>↻</div>
+              {!tiltEnabled && (
+                <button
+                  onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); requestTiltPermission(); }}
+                  style={{ fontFamily: '"Courier New", monospace', fontSize: 10, color: '#ffdd00', background: 'rgba(255,220,0,0.15)', border: '1px solid rgba(255,220,0,0.4)', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', pointerEvents: 'auto', marginTop: 4 }}
+                >
+                  Activer l'inclinaison
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Boutons coin pause/info (tactile seulement) */}
-        <div className="touch-corner-btns" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'none' }}>
-          <button className="touch-corner-btn" onPointerDown={handleTouchPause}
-            style={{ position: 'absolute', top: 4, left: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏸</button>
-          <button className="touch-corner-btn" onPointerDown={handleTouchInfo}
-            style={{ position: 'absolute', top: 4, right: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ          </button>
-        </div>
-        {/* Orientation prompt portrait → paysage (tactile seulement) */}
-        {!isDesktop && <div className="orientation-prompt" style={{
+        {hasTouch && (
+          <div className="touch-corner-btns" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'none' }}>
+            <button className="touch-corner-btn" onPointerDown={handleTouchPause}
+              style={{ position: 'absolute', top: 4, left: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏸</button>
+            <button className="touch-corner-btn" onPointerDown={handleTouchInfo}
+              style={{ position: 'absolute', top: 4, right: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ          </button>
+          </div>
+        )}
+
+        {/* Orientation prompt portrait → paysage */}
+        {hasTouch && <div className="orientation-prompt" style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           zIndex: 999,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -227,31 +270,32 @@ export default function App() {
         </div>}
       </div>
 
-      <div
-        style={{
-          color: 'rgba(80,120,200,0.55)',
-          fontSize: 12,
-          fontFamily: '"Courier New", monospace',
-          letterSpacing: 2,
-          paddingBottom: 6,
-          flexShrink: 0,
-        }}
-        className="keyboard-hint"
-      >
-        ← → DÉPLACER &nbsp;|&nbsp; ESPACE TIRER / CHARGER &nbsp;|&nbsp; I INFOS &nbsp;|&nbsp; O OPTIONS &nbsp;|&nbsp; M SILENCE &nbsp;|&nbsp; P PAUSE &nbsp;|&nbsp; ENTRÉE NIVEAUX &nbsp;|&nbsp; R RESET
-      </div>
+      {hasKeyboard && (
+        <div
+          style={{
+            color: 'rgba(80,120,200,0.55)',
+            fontSize: 12,
+            fontFamily: '"Courier New", monospace',
+            letterSpacing: 2,
+            paddingBottom: 6,
+            flexShrink: 0,
+          }}
+          className="keyboard-hint"
+        >
+          ← → DÉPLACER &nbsp;|&nbsp; ESPACE TIRER / CHARGER &nbsp;|&nbsp; I INFOS &nbsp;|&nbsp; O OPTIONS &nbsp;|&nbsp; M SILENCE &nbsp;|&nbsp; P PAUSE &nbsp;|&nbsp; ENTRÉE NIVEAUX &nbsp;|&nbsp; R RESET
+        </div>
+      )}
 
       <style>{`
-        @media (hover: hover) and (pointer: fine) {
-          .touch-controls { display: none !important; }
+        @media not (any-pointer: coarse) {
           .touch-overlay { display: none !important; }
           .touch-corner-btns { display: none !important; }
         }
-        @media (hover: none) or (pointer: coarse) {
+        @media not (any-pointer: fine) {
           .keyboard-hint { display: none !important; }
         }
         .orientation-prompt { display: none !important; }
-        @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+        @media (orientation: portrait) and (any-pointer: coarse) {
           .orientation-prompt { display: flex !important; }
         }
         @keyframes rotateHint {
