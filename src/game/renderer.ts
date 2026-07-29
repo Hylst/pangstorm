@@ -64,7 +64,7 @@ export function render(
 
   drawMilestones(ctx, state);
   drawOverlay(ctx, state, time);
-  drawPauseOverlay(ctx, state, time);
+  drawPauseOverlay(ctx, state, time, options);
   drawLevelSelect(ctx, state, time);
   drawInfoOverlay(ctx, state, time);
   drawOptionsOverlay(ctx, state, time, options);

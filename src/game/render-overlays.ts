@@ -1,4 +1,4 @@
-import { GameState, GameOptions, ONBOARDING_STEPS, PAUSE_BUTTONS } from './types';
+import { GameState, GameOptions, OnboardingStep, ONBOARDING_STEPS, PAUSE_BUTTONS } from './types';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './constants';
 import { getTheme, LevelTheme } from './themes';
 import { roundRect } from './render-utils';
@@ -169,7 +169,7 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
   }
 }
 
-function stepTextTouch(step: import('./types').OnboardingStep): string {
+function stepTextTouch(step: OnboardingStep): string {
   switch (step.id) {
     case 2: return 'Glisse sur la moitié droite de l\'écran pour bouger le vaisseau.';
     case 3: return 'Tape sur la moitié gauche de l\'écran pour lancer un grappin. Maintiens pour auto-feu.';
@@ -222,7 +222,7 @@ export function drawPauseButtons(ctx: CanvasRenderingContext2D, state: GameState
   }
 }
 
-export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameState, time: number, options?: GameOptions) {
   if (!state.confirmDialog) return;
   const cx = LOGICAL_WIDTH / 2;
   const cy = LOGICAL_HEIGHT / 2;
@@ -265,17 +265,21 @@ export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameStat
   ctx.shadowBlur = 0;
 
   if (window.matchMedia('(any-pointer: coarse)').matches) {
+    const mode = options?.controlMode ?? 'overlay';
+    const hint = mode === 'tilt' ? 'Toucher = OUI (gauche) / NON (droite)' :
+                 mode === 'classic' ? '◀ NON  🔥 OUI  ▶ NON' :
+                 'Toucher gauche = OUI, droite = NON';
     ctx.font = '12px "Courier New", monospace';
     ctx.fillStyle = `rgba(200,220,255,${0.3 + 0.3 * Math.sin(time * 3)})`;
-    ctx.fillText('Toucher gauche = OUI, droite = NON', cx, cy + 65);
+    ctx.fillText(hint, cx, cy + 65);
   }
 }
 
-export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number, options?: GameOptions) {
   if (state.phase !== 'paused') return;
 
   if (state.confirmDialog) {
-    drawConfirmDialog(ctx, state, time);
+    drawConfirmDialog(ctx, state, time, options);
     return;
   }
 

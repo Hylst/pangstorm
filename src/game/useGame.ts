@@ -479,7 +479,8 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
         case 3: {
           const modes: ControlMode[] = ['overlay', 'classic', 'tilt'];
           const ci = modes.indexOf(opts.controlMode);
-          updateOptions({ controlMode: modes[(ci + 1) % modes.length] });
+          const next = ((ci + dir) % modes.length + modes.length) % modes.length;
+          updateOptions({ controlMode: modes[next] });
           break;
         }
         case 4: {

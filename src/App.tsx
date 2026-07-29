@@ -52,6 +52,18 @@ export default function App() {
 
   const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
     const opts = optionsRef.current;
+    if (opts.controlMode === 'tilt') {
+      return {
+        position: 'absolute',
+        top: 0,
+        [side]: 0,
+        width: '50%',
+        height: '100%',
+        touchAction: 'none',
+        userSelect: 'none',
+        zIndex: 10,
+      };
+    }
     const splitRatio = opts.controlMode === 'classic' ? 0.5 : (opts.invertZones ? 1 - opts.zoneSplitRatio : opts.zoneSplitRatio);
     const leftPct = side === 'left' ? `${splitRatio * 100}%` : `${(1 - splitRatio) * 100}%`;
     return {
@@ -219,11 +231,18 @@ export default function App() {
           </div>
         )}
 
-        {/* Mode inclinaison : feu gauche + incliner droite */}
+        {/* Mode inclinaison : les deux côtés tirent, l'inclinaison déplace */}
         {hasTouch && isTilt && (
           <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               style={getZoneStyle('left')}
+              onPointerDown={(e) => handleTouchZone('fire', e)}
+              onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
+            />
+            <div
+              style={getZoneStyle('right')}
               onPointerDown={(e) => handleTouchZone('fire', e)}
               onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
               onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
