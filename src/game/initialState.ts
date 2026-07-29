@@ -155,5 +155,7 @@ export function makeInitialState(): GameState {
     levelBestScores: [],
     hooksFired: 0,
     hooksHit: 0,
+    levelElapsed: 0,
+    levelMaxCombo: 0,
   };
 }

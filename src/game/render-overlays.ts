@@ -4,6 +4,7 @@ import { getTheme, LevelTheme } from './themes';
 import { roundRect } from './render-utils';
 import { drawStarsSummary } from './render-hud';
 import { drawGlowCircle } from './render-entities';
+import { calcStars } from './update';
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
   const words = text.split(' ');
@@ -334,25 +335,31 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, tim
     ctx.fillStyle = 'rgba(3,4,15,0.55)';
     ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
-    const stars = state.levelHits === 0 ? 3 : state.levelHits === 1 ? 2 : 1;
-    drawStarsSummary(ctx, cx, cy - 70, stars);
+    const stars = calcStars(state);
+    drawStarsSummary(ctx, cx, cy - 75, stars);
 
     ctx.textAlign = 'center';
-    ctx.font = 'bold 58px "Courier New", monospace';
+    ctx.font = 'bold 50px "Courier New", monospace';
     ctx.fillStyle = '#39ff14';
     ctx.shadowColor = '#39ff14';
     ctx.shadowBlur = 36;
     ctx.fillText('NIVEAU TERMINÉ !', cx, cy - 24);
-    ctx.font = 'bold 28px "Courier New", monospace';
+    ctx.font = 'bold 22px "Courier New", monospace';
     ctx.fillStyle = '#ffdd00';
     ctx.shadowColor = '#ffaa00';
-    ctx.fillText(`SUIVANT : ${getTheme(level + 1).name.toUpperCase()}`, cx, cy + 24);
+    ctx.fillText(`SUIVANT : ${getTheme(level + 1).name.toUpperCase()}`, cx, cy + 16);
+    // infos de performance
+    const accPct = state.hooksFired > 0 ? Math.round(state.hooksHit / state.hooksFired * 100) : 0;
+    const seconds = Math.floor(state.levelElapsed);
+    ctx.font = '13px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.7)';
+    ctx.shadowBlur = 0;
+    ctx.fillText(`${accPct}% précision  •  ${seconds}s  •  combo max ×${state.levelMaxCombo}`, cx, cy + 46);
     const lvlBest = state.levelBestScores.find(ls => ls.level === level);
     if (lvlBest) {
-      ctx.font = 'bold 16px "Courier New", monospace';
+      ctx.font = 'bold 14px "Courier New", monospace';
       ctx.fillStyle = '#88aaff';
-      ctx.shadowBlur = 0;
-      ctx.fillText(`RECORD NIVEAU : ${lvlBest.score.toString().padStart(7, '0')}`, cx, cy + 56);
+      ctx.fillText(`RECORD NIVEAU : ${lvlBest.score.toString().padStart(7, '0')}`, cx, cy + 68);
     }
     ctx.shadowBlur = 0;
     return;
@@ -375,15 +382,21 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, tim
     ctx.fillStyle = 'rgba(3,4,15,0.88)';
     ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
-    const stars = state.levelHits === 0 ? 3 : state.levelHits === 1 ? 2 : 1;
-    drawStarsSummary(ctx, cx, cy - 100, stars);
+    const stars = calcStars(state);
+    drawStarsSummary(ctx, cx, cy - 105, stars);
+    const accPct = state.hooksFired > 0 ? Math.round(state.hooksHit / state.hooksFired * 100) : 0;
+    const seconds = Math.floor(state.levelElapsed);
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.6)';
+    ctx.shadowBlur = 0;
+    ctx.fillText(`${accPct}% précision  •  ${seconds}s  •  combo max ×${state.levelMaxCombo}`, cx, cy - 82);
 
     ctx.textAlign = 'center';
     ctx.font = 'bold 68px "Courier New", monospace';
     ctx.fillStyle = '#ff3a6e';
     ctx.shadowColor = '#ff0000';
     ctx.shadowBlur = 36;
-    ctx.fillText('PERDU', cx, cy - 70);
+    ctx.fillText('PERDU', cx, cy - 48);
     ctx.font = 'bold 30px "Courier New", monospace';
     ctx.fillStyle = '#c0d8ff';
     ctx.shadowColor = '#4488ff';

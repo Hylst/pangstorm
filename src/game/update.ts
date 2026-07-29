@@ -31,10 +31,32 @@ function triggerShake(state: GameState, intensity: number, duration: number) {
   state.shake = { intensity, duration, elapsed: 0 };
 }
 
-function getStars(levelHits: number): number {
-  if (levelHits === 0) return 3;
-  if (levelHits === 1) return 2;
-  return 1;
+export function calcStars(s: GameState): number {
+  // base : dégâts subis (0 hits = 3, 1 = 2, 2+ = 1)
+  let stars = s.levelHits === 0 ? 3 : s.levelHits === 1 ? 2 : 1;
+
+  // précision : hooksHit / hooksFired
+  if (s.hooksFired > 0) {
+    const acc = s.hooksHit / s.hooksFired;
+    if (acc >= 0.9)      stars += 1;
+    else if (acc >= 0.7) stars += 0.5;
+    else if (acc >= 0.5) stars += 0.25;
+  }
+
+  // vitesse : temps écoulé / nb balles
+  const totalBalls = s.difficulty.ballCount;
+  if (totalBalls > 0 && s.levelElapsed > 0) {
+    const secPerBall = s.levelElapsed / totalBalls;
+    if (secPerBall <= 3)      stars += 1;
+    else if (secPerBall <= 5) stars += 0.5;
+    else if (secPerBall <= 8) stars += 0.25;
+  }
+
+  // combo max
+  if (s.levelMaxCombo >= 15)      stars += 0.5;
+  else if (s.levelMaxCombo >= 8)  stars += 0.25;
+
+  return Math.max(1, Math.min(5, Math.round(stars)));
 }
 
 function saveLevelBest(state: GameState) {
@@ -63,6 +85,8 @@ function startLevel(state: GameState, level: number) {
   state.platforms = makePlatforms(level);
   state.hooksFired = 0;
   state.hooksHit = 0;
+  state.levelElapsed = 0;
+  state.levelMaxCombo = 0;
 
   if (diff.spawnDelay > 0) {
     state.ballsPending = allBalls;
@@ -168,7 +192,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
     for (const f of s.floaters) { f.y -= 40 * dt; f.life -= dt; f.scale = 1 + (1 - f.life / f.maxLife) * 0.3; }
     s.floaters = s.floaters.filter(f => f.life > 0);
     if (s.levelTimer <= 0) {
-      const stars = getStars(s.levelHits);
+      const stars = calcStars(s);
       const existing = s.levelStars.findIndex(ls => ls.level === s.level);
       if (existing >= 0) { if (stars > s.levelStars[existing].stars) { s.levelStars[existing].stars = stars; s.levelStars[existing].score = s.score; } }
       else { s.levelStars.push({ level: s.level, stars, score: s.score }); }
@@ -181,7 +205,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
 
   if (s.phase === 'gameover') {
     if (input.fire) {
-      const stars = getStars(s.levelHits);
+      const stars = calcStars(s);
       const existing = s.levelStars.findIndex(ls => ls.level === s.level);
       if (existing >= 0) { if (stars > s.levelStars[existing].stars) { s.levelStars[existing].stars = stars; s.levelStars[existing].score = s.score; } }
       else { s.levelStars.push({ level: s.level, stars, score: s.score }); }
@@ -211,6 +235,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
   const { player } = s;
   const diff = s.difficulty;
 
+  s.levelElapsed += dt;
   if (s.shake.duration > 0) { s.shake.elapsed += dt; if (s.shake.elapsed >= s.shake.duration) s.shake = { intensity: 0, duration: 0, elapsed: 0 }; }
   if (s.ballSpawnPulse > 0) s.ballSpawnPulse = Math.max(0, s.ballSpawnPulse - dt * 2);
   if (s.levelIntro > 0) s.levelIntro = Math.max(0, s.levelIntro - dt);
@@ -310,7 +335,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
         if (ball.remainingHits > 0) { ball.flash = 1; const kickDir = hook.x < ball.x ? 1 : -1; ball.vx += kickDir * 120; ball.vy = -Math.abs(ball.vy) * 0.8 - 80; playSfx('bounce'); break; }
 
         ballIdsToRemove.add(ball.id);
-        s.combo += 1; s.comboTimer = COMBO_WINDOW; s.comboDisplay = 1.8; s.streak += 1; s.totalPopped += 1;
+        s.combo += 1; s.levelMaxCombo = Math.max(s.levelMaxCombo, s.combo); s.comboTimer = COMBO_WINDOW; s.comboDisplay = 1.8; s.streak += 1; s.totalPopped += 1;
         const scoreBoost = effects.scoreBoostTimer > 0 ? 2 : 1;
         const multiplier = s.combo * scoreBoost;
         const heightFactor = (ball.y - CEILING_Y) / (FLOOR_Y - CEILING_Y);
@@ -440,6 +465,15 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
       if (accBonus > 0) {
         s.score += accBonus;
         addFloater(s, LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 90, `PRÉCISION ${Math.round(accuracy * 100)}% +${accBonus}`, '#ffdd00');
+      }
+    }
+    // bonus de temps
+    const timePerBall = s.difficulty.ballCount > 0 ? s.levelElapsed / s.difficulty.ballCount : 99;
+    if (timePerBall <= 5) {
+      const timeBonus = Math.floor(300 * s.level * Math.max(0, 5 - timePerBall));
+      if (timeBonus > 0) {
+        s.score += timeBonus;
+        addFloater(s, LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 120, `VITESSE +${timeBonus}`, '#00e5ff');
       }
     }
   }

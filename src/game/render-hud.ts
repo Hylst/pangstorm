@@ -30,13 +30,15 @@ function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: 
   ctx.restore();
 }
 
-export function drawStarsSummary(ctx: CanvasRenderingContext2D, cx: number, cy: number, stars: number) {
+export function drawStarsSummary(ctx: CanvasRenderingContext2D, cx: number, cy: number, stars: number, max = 5) {
+  const filled = Math.min(stars, max);
+  const empty = max - filled;
   ctx.font = '20px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffdd00';
   ctx.shadowColor = '#ffaa00';
   ctx.shadowBlur = 8;
-  ctx.fillText('★'.repeat(stars) + '☆'.repeat(3 - stars), cx, cy);
+  ctx.fillText('★'.repeat(filled) + '☆'.repeat(empty), cx, cy);
   ctx.shadowBlur = 0;
 }
 

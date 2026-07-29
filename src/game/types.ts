@@ -130,6 +130,8 @@ export interface GameState {
   levelBestScores: LevelScore[];
   hooksFired: number;
   hooksHit: number;
+  levelElapsed: number;
+  levelMaxCombo: number;
 }
 
 export interface Ambient {
