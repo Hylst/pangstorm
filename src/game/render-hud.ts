@@ -1,10 +1,10 @@
 import { GameState } from './types';
 import {
-  LOGICAL_WIDTH, LOGICAL_HEIGHT,
-  FLOOR_Y, CEILING_Y,
+  LOGICAL_WIDTH,
+  FLOOR_Y,
   MAX_LIVES,
 } from './constants';
-import { getTheme, LevelTheme } from './themes';
+import { getTheme } from './themes';
 
 function drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, filled: boolean) {
   ctx.save();

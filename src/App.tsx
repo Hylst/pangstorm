@@ -209,7 +209,7 @@ export default function App() {
           height: 12px;
           width: 12px;
           border-radius: 50%;
-          background: '#4488ff';
+          background: #4488ff;
           margin-top: -4px;
         }
       `}</style>
