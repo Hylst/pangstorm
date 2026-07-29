@@ -715,7 +715,7 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
     { label: 'INVERSER ZONES',      value: opts.invertZones ? 'OUI' : 'NON' },
     { label: 'TAILLE ZONE DEPLAC.',  value: `${Math.round(opts.zoneSplitRatio * 100)}%` },
     { label: 'ZONE MORTE',          value: `${opts.deadZonePx}px` },
-    { label: 'MODE CLASSIQUE',      value: opts.classicMode ? 'OUI' : 'NON' },
+        { label: 'BOUTONS BAS (CLASSIQUE)', value: opts.classicMode ? 'OUI' : 'NON' },
     { label: 'SENSIBILITÉ',         value: `${opts.touchSensitivity.toFixed(1)}×` },
     { label: 'SANS CHROME',         value: opts.chromeLess ? 'OUI' : 'NON' },
   ];

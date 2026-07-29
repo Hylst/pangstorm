@@ -201,7 +201,10 @@ export interface InputState {
   touchFireHeld: boolean;
 }
 
+export const OPTIONS_VERSION = 1;
+
 export interface GameOptions {
+  _v?: number;
   invertZones: boolean;
   zoneSplitRatio: number;
   deadZonePx: number;
@@ -211,6 +214,7 @@ export interface GameOptions {
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
+  _v: OPTIONS_VERSION,
   invertZones: false,
   zoneSplitRatio: 0.5,
   deadZonePx: 10,

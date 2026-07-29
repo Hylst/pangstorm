@@ -1,6 +1,6 @@
 // hook principal — relie React, le canvas et la boucle de jeu
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { GameState, InputState, GameOptions, DEFAULT_OPTIONS, PAUSE_BUTTONS } from './types';
+import { GameState, InputState, GameOptions, DEFAULT_OPTIONS, OPTIONS_VERSION, PAUSE_BUTTONS } from './types';
 import { makeInitialState } from './initialState';
 import { update, startLevel } from './update';
 import { render } from './renderer';
@@ -11,7 +11,13 @@ import { loadAssets, GameAssets } from './assets';
 function loadOptions(): GameOptions {
   try {
     const raw = localStorage.getItem('pang_genesis_options');
-    if (raw) return { ...DEFAULT_OPTIONS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Migration : si la version est absente ou différente, on réinitialise
+      if (parsed._v === OPTIONS_VERSION) {
+        return { ...DEFAULT_OPTIONS, ...parsed };
+      }
+    }
   } catch {}
   return { ...DEFAULT_OPTIONS };
 }

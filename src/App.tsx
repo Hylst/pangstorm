@@ -167,7 +167,7 @@ export default function App() {
 
         {/* Zones tactiles — cachées en classicMode ou desktop */}
         {!isDesktop && !optionsRef.current.classicMode && (
-          <div className="touch-overlay">
+          <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               style={getZoneStyle('left')}
               onPointerDown={(e) => handleTouchZone('fire', e)}
@@ -183,10 +183,16 @@ export default function App() {
               onPointerLeave={(e) => handleTouchZoneEnd('move', e)}
               onPointerCancel={(e) => handleTouchZoneEnd('move', e)}
             />
-            {/* Indicateurs visuels */}
-            <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', width: 64, height: 64, borderRadius: '50%', border: '2px solid rgba(255,100,100,0.4)', background: 'radial-gradient(circle, rgba(255,60,60,0.25), transparent 70%)', zIndex: 11, pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', width: 80, height: 80, borderRadius: '50%', border: '2px solid rgba(100,160,255,0.4)', background: 'radial-gradient(circle, rgba(60,120,255,0.25), transparent 70%)', zIndex: 11, pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: 56, right: '25%', transform: 'translateX(50%)', width: 16, height: 16, borderRadius: '50%', background: 'rgba(180,220,255,0.5)', zIndex: 11, pointerEvents: 'none' }} />
+            {/* Indicateurs visuels plus visibles */}
+            <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(255,150,150,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Feu</span>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', border: '2px solid rgba(255,80,80,0.5)', background: 'radial-gradient(circle, rgba(255,60,60,0.35), transparent 70%)' }} />
+            </div>
+            <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,200,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Dir</span>
+              <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,180,255,0.5)', background: 'radial-gradient(circle, rgba(60,140,255,0.35), transparent 70%)' }} />
+              <div style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(180,220,255,0.6)', boxShadow: '0 0 8px rgba(100,180,255,0.5)' }} />
+            </div>
           </div>
         )}
 
