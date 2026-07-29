@@ -1,4 +1,4 @@
-import { GameState } from './types';
+import { GameState, GameOptions } from './types';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './constants';
 import { applyShake } from './animations';
 import { getTheme } from './themes';
@@ -7,13 +7,13 @@ import { GameAssets } from './assets';
 import { drawBallTrail, drawGlowCircle, drawPlayer, drawHook, drawPlatforms, drawPowerUps } from './render-entities';
 import { drawBackground, drawFloorCeiling, drawAmbient } from './render-background';
 import { drawHUD } from './render-hud';
-import { drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay, drawInfoOverlay } from './render-overlays';
+import { drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay, drawInfoOverlay, drawOptionsOverlay } from './render-overlays';
 
 export {
   drawBallTrail, drawGlowCircle, drawPlayer, drawHook, drawPlatforms, drawPowerUps,
   drawBackground, drawFloorCeiling, drawAmbient,
   drawHUD,
-  drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay, drawInfoOverlay,
+  drawFloaters, drawMilestones, drawLevelIntro, drawOnboarding, drawPauseOverlay, drawLevelSelect, drawOverlay, drawInfoOverlay, drawOptionsOverlay,
 };
 
 export function render(
@@ -21,6 +21,7 @@ export function render(
   state: GameState,
   time: number,
   assets: GameAssets,
+  options?: GameOptions,
 ) {
   ctx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
   const theme = getTheme(state.level);
@@ -66,6 +67,7 @@ export function render(
   drawPauseOverlay(ctx, state, time);
   drawLevelSelect(ctx, state, time);
   drawInfoOverlay(ctx, state, time);
+  drawOptionsOverlay(ctx, state, time, options);
 
   for (const p of state.flashParticles) {
     const alpha = p.life / p.maxLife;

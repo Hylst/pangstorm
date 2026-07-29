@@ -20,9 +20,35 @@
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://games.hylst.fr/pang_genesis/" />
     <link rel="icon" type="image/webp" href="favicon.webp" />
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0a0a2e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pang Genesis" />
+    <link rel="apple-touch-icon" href="/pang_genesis/icon-192.png" />
+    <link rel="apple-touch-startup-image" href="/pang_genesis/icon-512.png" media="(orientation: landscape)" />
+    <meta name="application-name" content="Pang Genesis" />
+    <meta name="msapplication-TileColor" content="#0a0a2e" />
+    <meta name="msapplication-TileImage" content="/pang_genesis/icon-192.png" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js', { scope: '/pang_genesis/' })
+            .then(function(reg) {
+              if (reg.installing) console.log('[PWA] SW installing');
+              else if (reg.waiting) console.log('[PWA] SW installed');
+              else if (reg.active) console.log('[PWA] SW active');
+            })
+            .catch(function(err) {
+              console.warn('[PWA] SW registration failed:', err);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

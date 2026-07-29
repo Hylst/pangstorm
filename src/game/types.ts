@@ -6,6 +6,12 @@ export type { PowerUp, ActiveEffects } from './powerups';
 
 export interface Vec2 { x: number; y: number }
 
+export interface ConfirmDialog {
+  visible: boolean;
+  message: string;
+  action: 'quit' | 'resetFull' | 'resetLevel' | null;
+}
+
 export interface Ball {
   id:     number;
   x:      number;
@@ -58,7 +64,7 @@ export interface Player {
   charge: number;
 }
 
-export type GamePhase = 'title' | 'onboarding' | 'playing' | 'paused' | 'dead' | 'levelup' | 'gameover' | 'levelselect' | 'info';
+export type GamePhase = 'title' | 'onboarding' | 'playing' | 'paused' | 'dead' | 'levelup' | 'gameover' | 'levelselect' | 'info' | 'options';
 
 export interface OnboardingStep {
   id: number;
@@ -132,6 +138,8 @@ export interface GameState {
   hooksHit: number;
   levelElapsed: number;
   levelMaxCombo: number;
+  confirmDialog: ConfirmDialog | null;
+  optionsCursor: number;
 }
 
 export interface Ambient {
@@ -183,4 +191,41 @@ export interface InputState {
   pause:    boolean;
   enter:    boolean;
   info:     boolean;
+  options:  boolean;
+  quit:     boolean;
+  resetLevel: boolean;
+  resetFull: boolean;
+  reset:    boolean;
+  touchTargetX: number | null;
+  touchFireHeld: boolean;
 }
+
+export interface GameOptions {
+  invertZones: boolean;
+  zoneSplitRatio: number;
+  deadZonePx: number;
+  classicMode: boolean;
+}
+
+export const DEFAULT_OPTIONS: GameOptions = {
+  invertZones: false,
+  zoneSplitRatio: 0.5,
+  deadZonePx: 10,
+  classicMode: false,
+};
+
+export interface PauseButton {
+  id: string;
+  label: string;
+  y: number;
+  h: number;
+  action: 'resume' | 'resetLevel' | 'resetFull' | 'quit' | 'options';
+}
+
+export const PAUSE_BUTTONS: PauseButton[] = [
+  { id: 'resume',      label: '▶ REPRENDRE',           y: 230, h: 36, action: 'resume' },
+  { id: 'resetLevel',  label: '↻ RECOMMENCER NIVEAU',  y: 276, h: 36, action: 'resetLevel' },
+  { id: 'resetFull',   label: '↻ REC. COMPLET',        y: 322, h: 36, action: 'resetFull' },
+  { id: 'options',     label: '⚙ OPTIONS',             y: 368, h: 36, action: 'options' },
+  { id: 'quit',        label: '✕ QUITTER',             y: 414, h: 36, action: 'quit' },
+];

@@ -41,3 +41,6 @@ export const BASE_SCORE: Record<number, number> = { 3: 100, 2: 250, 1: 600, 0: 1
 
 export const TINY_RADIUS = 9;
 export const TINY_SPEED  = 240;
+
+export const TOUCH_AUTO_FIRE_INTERVAL = 0.25;
+export const TOUCH_DEAD_ZONE_DEFAULT = 10;

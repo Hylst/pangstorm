@@ -1,0 +1,39 @@
+{
+  "id": "/pang_genesis/",
+  "name": "Pang Genesis",
+  "short_name": "Pang Genesis",
+  "description": "Pang Genesis : charge shot, balles à tête chercheuse, 5 thèmes visuels néon, système de combos et milestones.",
+  "start_url": "/pang_genesis/",
+  "scope": "/pang_genesis/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "landscape",
+  "background_color": "#0a0a2e",
+  "theme_color": "#0a0a2e",
+  "categories": ["games", "arcade"],
+  "lang": "fr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/pang_genesis/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pang_genesis/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/pang_genesis/og-image.png",
+      "sizes": "1024x576",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Pang Genesis - Gameplay"
+    }
+  ]
+}

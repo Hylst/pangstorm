@@ -1,4 +1,4 @@
-import { GameState, ONBOARDING_STEPS } from './types';
+import { GameState, GameOptions, ONBOARDING_STEPS, PAUSE_BUTTONS } from './types';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './constants';
 import { getTheme, LevelTheme } from './themes';
 import { roundRect } from './render-utils';
@@ -164,25 +164,102 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
   }
 }
 
-const PAUSE_TIPS: string[] = [
-  'Tire vers le haut : le grappin traverse plusieurs balles',
-  'Un combo ×5 donne 250 points bonus',
-  'La bombe détruit toutes les balles d\'un coup',
-  'Le bouclier te protège des balles 10 secondes',
-  'Attrape l\'aimant pour que les bonus volent vers toi',
-  'Précision ≥90% = +1★ sur ta note de niveau',
-  'Termine en ≤3s par balle pour +1★',
-  'Un combo ≥15 = +0.5★',
-  'Les plateformes apparaissent au niveau 8',
-  'Le score ×2 double tous tes gains 10 secondes',
-  'Le bonus de hauteur peut aller jusqu\'à ×1,5',
-  'Tirer chargé (espace maintenu) élargit le grappin',
-  'Tirs limités à partir du niveau 60',
-  '3★ minimum si tu ne prends aucun dégât',
-];
+export function drawPauseButtons(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+  const cx = LOGICAL_WIDTH / 2;
+  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+
+  for (const btn of state.confirmDialog ? [] : PAUSE_BUTTONS) {
+    const bx = cx - 130;
+    const bw = 260;
+    const hover = false;
+    const alpha = 0.7 + 0.3 * Math.sin(time * 3 + btn.y * 0.1);
+
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = hover ? 'rgba(30,60,120,0.7)' : 'rgba(15,25,55,0.6)';
+    ctx.strokeStyle = hover ? '#4488ff' : 'rgba(60,100,200,0.5)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, bx, btn.y, bw, btn.h, 8);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px "Courier New", monospace';
+    ctx.fillStyle = btn.action === 'quit' ? '#ff6b6b' : '#c0d8ff';
+
+    if (btn.action === 'resume') {
+      ctx.fillStyle = '#39ff14';
+      ctx.shadowColor = '#39ff14';
+      ctx.shadowBlur = 10;
+    } else if (btn.action === 'quit') {
+      ctx.fillStyle = '#ff6b6b';
+      ctx.shadowColor = '#ff6b6b';
+      ctx.shadowBlur = 8;
+    }
+
+    ctx.fillText(btn.label, cx, btn.y + 28);
+    ctx.shadowBlur = 0;
+  }
+}
+
+export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
+  if (!state.confirmDialog) return;
+  const cx = LOGICAL_WIDTH / 2;
+  const cy = LOGICAL_HEIGHT / 2;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+  const bw = 340;
+  const bh = 180;
+  const bx = cx - bw / 2;
+  const by = cy - bh / 2;
+
+  ctx.fillStyle = 'rgba(10,15,35,0.92)';
+  ctx.strokeStyle = 'rgba(100,160,255,0.4)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, bx, by, bw, bh, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 18px "Courier New", monospace';
+  ctx.fillStyle = '#c0d8ff';
+  ctx.fillText(state.confirmDialog.message, cx, cy - 30);
+
+  const btnAlpha = 0.5 + 0.5 * Math.sin(time * 3);
+  ctx.font = 'bold 16px "Courier New", monospace';
+
+  // Oui
+  ctx.fillStyle = '#39ff14';
+  ctx.shadowColor = '#39ff14';
+  ctx.shadowBlur = 12 * btnAlpha;
+  ctx.fillText('[ OUI ]', cx - 80, cy + 30);
+  ctx.shadowBlur = 0;
+
+  // Non
+  ctx.fillStyle = '#ff6b6b';
+  ctx.shadowColor = '#ff6b6b';
+  ctx.shadowBlur = 12 * btnAlpha;
+  ctx.fillText('[ NON ]', cx + 80, cy + 30);
+  ctx.shadowBlur = 0;
+
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillStyle = `rgba(200,220,255,${0.3 + 0.3 * Math.sin(time * 3)})`;
+    ctx.fillText('Toucher gauche = OUI, droite = NON', cx, cy + 65);
+  }
+}
 
 export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   if (state.phase !== 'paused') return;
+
+  if (state.confirmDialog) {
+    drawConfirmDialog(ctx, state, time);
+    return;
+  }
+
   ctx.fillStyle = 'rgba(3,4,15,0.82)';
   ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
@@ -191,7 +268,7 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState
   const pulse = 0.92 + 0.08 * Math.sin(time * 3);
 
   ctx.save();
-  ctx.translate(cx, cy);
+  ctx.translate(cx, cy - 100);
   ctx.scale(pulse, pulse);
   ctx.textAlign = 'center';
   ctx.font = 'bold 68px "Courier New", monospace';
@@ -201,17 +278,16 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState
   ctx.fillText('PAUSE', 0, -10);
   ctx.restore();
 
-  // astuce aléatoire qui change toutes les 4s
-  const tipIdx = Math.floor(time / 4) % PAUSE_TIPS.length;
-  ctx.font = '14px "Courier New", monospace';
-  ctx.fillStyle = 'rgba(200,220,255,0.8)';
-  ctx.shadowBlur = 0;
-  ctx.fillText('💡 ' + PAUSE_TIPS[tipIdx], cx, cy + 50);
+  drawPauseButtons(ctx, state, time);
 
-  ctx.font = '18px "Courier New", monospace';
-  ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
-  ctx.fillText('P POUR REPRENDRE', cx, cy + 90);
-  ctx.fillText('Q POUR QUITTER', cx, cy + 118);
+  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  if (!isTouch) {
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.6)';
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'center';
+    ctx.fillText('P REPRENDRE  •  Q QUITTER  •  O OPTIONS', cx, LOGICAL_HEIGHT - 30);
+  }
 }
 
 export function drawLevelSelect(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
@@ -297,59 +373,87 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, tim
 
     const pulse = 0.9 + 0.1 * Math.sin(time * 2.5);
     ctx.save();
-    ctx.translate(cx, cy - 120);
+    ctx.translate(cx, cy - 155);
     ctx.scale(pulse, pulse);
     ctx.textAlign = 'center';
-    ctx.font = 'bold 78px "Courier New", monospace';
+    ctx.font = 'bold 60px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = '#4499ff';
     ctx.shadowBlur = 55;
     ctx.fillText('PANG', 0, 0);
-    ctx.font = 'bold 42px "Courier New", monospace';
+    ctx.font = 'bold 30px "Courier New", monospace';
     ctx.fillStyle = '#88aaff';
     ctx.shadowColor = '#4488ff';
     ctx.shadowBlur = 26;
-    ctx.fillText('GENESIS', 0, 54);
+    ctx.fillText('GENESIS', 0, 40);
     ctx.restore();
 
-    ctx.font = '18px "Courier New", monospace';
-    ctx.fillStyle = '#aaccff';
     ctx.textAlign = 'center';
     ctx.shadowBlur = 0;
-    ctx.fillText(`MEILLEUR SCORE  ${bestScore.toString().padStart(7,'0')}`, cx, cy - 30);
+
+    // Meilleur score et étoiles
+    ctx.font = '16px "Courier New", monospace';
+    ctx.fillStyle = '#aaccff';
+    ctx.fillText(`MEILLEUR SCORE  ${bestScore.toString().padStart(7,'0')}`, cx, cy - 55);
 
     const totalStars = state.levelStars.reduce((sum, ls) => sum + ls.stars, 0);
     const maxStars = Math.max(state.levelStars.length * 5, 1);
-    ctx.font = '14px "Courier New", monospace';
+    ctx.font = '13px "Courier New", monospace';
     ctx.fillStyle = 'rgba(200,220,255,0.7)';
-    ctx.fillText(`ÉTOILES : ${totalStars} / ${maxStars}`, cx, cy - 8);
+    ctx.fillText(`ÉTOILES : ${totalStars} / ${maxStars}`, cx, cy - 36);
 
-    ctx.font = '20px "Courier New", monospace';
-    ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
-    ctx.fillText('APPUYEZ SUR ESPACE POUR DÉMARRER', cx, cy + 10);
+    if (state.maxLevelReached > 1) {
+      ctx.font = '13px "Courier New", monospace';
+      ctx.fillStyle = '#ffdd00';
+      ctx.fillText(`PROGRESSION : NIVEAU ${state.maxLevelReached - 1} DÉBLOQUÉ`, cx, cy - 18);
+    }
 
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(120,140,200,0.9)';
-    ctx.fillText('← → DÉPLACER   •   ESPACE TIR / CHARGER   •   M SILENCE', cx, cy + 42);
-    ctx.fillText('RÉCUPÈRE LES BONUS  •  FAIS ÉCLATER TOUTES LES ORBES', cx, cy + 64);
+    // Boutons
+    const btnAlpha = 0.5 + 0.5 * Math.sin(time * 3);
+    const btnW = 260, btnH = 28;
+    const bx = cx - btnW / 2;
+    const btns: { label: string; y: number; color: string; glow: string; visible: boolean }[] = [];
+    btns.push({ label: 'ESPACE = DÉMARRER',     y: 295, color: '#39ff14', glow: '#39ff14', visible: true });
+    if (state.maxLevelReached > 1) {
+      btns.push({ label: 'ENTRÉE = CONTINUER',  y: 330, color: '#ffdd00', glow: '#ffaa00', visible: true });
+    }
+    btns.push({ label: 'O = OPTIONS',           y: 365, color: '#4488ff', glow: '#4488ff', visible: true });
+    if (state.maxLevelReached > 1) {
+      btns.push({ label: 'R = RÉINITIALISER',   y: 400, color: '#ff6b6b', glow: '#ff4400', visible: true });
+    }
 
-    ctx.font = '12px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(140,160,210,0.8)';
-    ctx.fillText('un jeu par Hylst - Geoffroy', cx, cy + 100);
-    ctx.fillStyle = 'rgba(110,130,180,0.7)';
-    ctx.fillText('avec l\'aide d\'une IA', cx, cy + 116);
-    ctx.fillStyle = 'rgba(100,120,170,0.6)';
-    ctx.font = '10px "Courier New", monospace';
-    ctx.fillText('graphismes réalisés par IA', cx, cy + 132);
-    ctx.fillStyle = 'rgba(90,110,170,0.5)';
-    ctx.fillText('librement inspiré du classique Pang d\'Ocean (Atari ST)', cx, cy + 148);
+    for (const btn of btns) {
+      if (!btn.visible) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = 'rgba(15,25,55,0.6)';
+      ctx.strokeStyle = btn.glow;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = btn.glow;
+      ctx.shadowBlur = 6 * btnAlpha;
+      roundRect(ctx, bx, btn.y, btnW, btnH, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      ctx.font = 'bold 15px "Courier New", monospace';
+      ctx.fillStyle = btn.color;
+      ctx.fillText(btn.label, cx, btn.y + 20);
+    }
+
+    // Credits compact
+    ctx.font = '11px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(120,140,200,0.55)';
+    ctx.fillText('Hylst - Geoffroy  •  inspiré du classique Pang (Atari ST)', cx, cy + 172);
 
     const demoColors = ['#ff3a6e', '#00e5ff', '#ffdd00', '#a259ff'];
     for (let i = 0; i < 4; i++) {
       const angle = time * 0.5 + (i * Math.PI * 2) / 4;
-      const dx = Math.cos(angle) * 150;
-      const dy = Math.sin(angle * 0.7) * 52;
-      drawGlowCircle(ctx, cx + dx, cy - 215 + dy, 18 + i * 4, demoColors[i], 0.2, time + i, time, 1);
+      const dx = Math.cos(angle) * 140;
+      const dy = Math.sin(angle * 0.7) * 46;
+      drawGlowCircle(ctx, cx + dx, cy - 250 + dy, 16 + i * 3, demoColors[i], 0.2, time + i, time, 1);
     }
     return;
   }
@@ -534,4 +638,84 @@ export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState,
   ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
   ctx.shadowBlur = 0;
   ctx.fillText('I POUR FERMER', cx, LOGICAL_HEIGHT - 24);
+}
+
+export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number, options?: GameOptions) {
+  if (state.phase !== 'options') return;
+  ctx.fillStyle = 'rgba(3,4,15,0.92)';
+  ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+  ctx.textAlign = 'center';
+
+  const cx = LOGICAL_WIDTH / 2;
+  ctx.font = 'bold 30px "Courier New", monospace';
+  ctx.fillStyle = '#00e5ff';
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 18;
+  ctx.fillText('OPTIONS', cx, 48);
+  ctx.shadowBlur = 0;
+
+  const opts = options;
+  if (!opts) {
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = 'rgba(200,220,255,0.6)';
+    ctx.fillText('Chargement…', cx, 120);
+    return;
+  }
+
+  ctx.textAlign = 'left';
+  let yy = 90;
+  const rw = 360, rh = 28, rx = cx - rw / 2;
+  const pulse = 0.5 + 0.5 * Math.sin(time * 3);
+
+  const optionRows = [
+    { label: 'INVERSER ZONES',     value: opts.invertZones ? 'OUI' : 'NON' },
+    { label: 'TAILLE ZONE DEPLAC.', value: `${Math.round(opts.zoneSplitRatio * 100)}%` },
+    { label: 'ZONE MORTE',         value: `${opts.deadZonePx}px` },
+    { label: 'MODE CLASSIQUE',     value: opts.classicMode ? 'OUI' : 'NON' },
+  ];
+
+  for (let i = 0; i < optionRows.length; i++) {
+    const row = optionRows[i];
+    const y = yy + i * 30;
+    const selected = state.optionsCursor === i;
+
+    if (selected) {
+      ctx.save();
+      ctx.globalAlpha = 0.2 + 0.1 * pulse;
+      ctx.fillStyle = '#4488ff';
+      roundRect(ctx, rx, y - rh / 2, rw, rh, 6);
+      ctx.fill();
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = '#4488ff';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur = 8;
+      roundRect(ctx, rx, y - rh / 2, rw, rh, 6);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      ctx.fillStyle = '#ffffff';
+    } else {
+      ctx.fillStyle = '#aaccff';
+    }
+
+    ctx.font = 'bold 15px "Courier New", monospace';
+    ctx.fillText(row.label, 60, y + 5);
+
+    ctx.textAlign = 'right';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillStyle = selected ? '#ffdd00' : '#8899bb';
+    ctx.fillText(row.value, LOGICAL_WIDTH - 60, y + 5);
+    ctx.textAlign = 'left';
+  }
+
+  yy += optionRows.length * 30 + 20;
+  ctx.textAlign = 'center';
+  ctx.font = '13px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(200,220,255,0.45)';
+  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  const hint = isTouch
+    ? 'TAPPER SUR UNE LIGNE POUR TOGGLER  •  O FERMER'
+    : '← → CURSEUR  •  ESPACE TOGGLER  •  O FERMER';
+  ctx.fillText(hint, cx, yy);
 }

@@ -1,18 +1,41 @@
 // hook principal — relie React, le canvas et la boucle de jeu
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { GameState, InputState } from './types';
+import { GameState, InputState, GameOptions, DEFAULT_OPTIONS, PAUSE_BUTTONS } from './types';
 import { makeInitialState } from './initialState';
-import { update } from './update';
+import { update, startLevel } from './update';
 import { render } from './renderer';
-import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './constants';
+import { LOGICAL_WIDTH, LOGICAL_HEIGHT, TOUCH_AUTO_FIRE_INTERVAL } from './constants';
 import { initSounds, initMusic, stopMusic, toggleMusic, getSfxVolume, getMusicVolume, setSfxVolume, setMusicVolume } from './sounds';
 import { loadAssets, GameAssets } from './assets';
+
+function loadOptions(): GameOptions {
+  try {
+    const raw = localStorage.getItem('pang_genesis_options');
+    if (raw) return { ...DEFAULT_OPTIONS, ...JSON.parse(raw) };
+  } catch {}
+  return { ...DEFAULT_OPTIONS };
+}
+
+function saveOptions(opts: GameOptions) {
+  localStorage.setItem('pang_genesis_options', JSON.stringify(opts));
+}
+
+async function requestFullscreenAndLock() {
+  try {
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
+    const o = (screen as any).orientation;
+    if (o?.lock) {
+      await o.lock('landscape');
+    }
+  } catch {}
+}
 
 export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const initialSt = makeInitialState();
   const savedBest = localStorage.getItem('pang_genesis_best');
   if (savedBest) initialSt.bestScore = parseInt(savedBest, 10) || 0;
-  // restaurer les étoiles et scores sauvegardés
   const savedStars = localStorage.getItem('pang_genesis_stars');
   if (savedStars) {
     try { initialSt.levelStars = JSON.parse(savedStars); } catch {}
@@ -21,12 +44,20 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   if (savedScores) {
     try { initialSt.levelBestScores = JSON.parse(savedScores); } catch {}
   }
-  const stateRef  = useRef<GameState>(initialSt);
-  const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false, pause: false, enter: false, info: false });
-  const rafRef    = useRef<number>(0);
-  const lastRef   = useRef<number>(0);
-  const timeRef   = useRef<number>(0);
-  const assetsRef = useRef<GameAssets>({ backgrounds: [], loaded: false });
+  const stateRef   = useRef<GameState>(initialSt);
+  const inputRef   = useRef<InputState>({
+    left: false, right: false, fire: false, fireHeld: false,
+    mute: false, pause: false, enter: false, info: false,
+    options: false, quit: false, resetLevel: false, resetFull: false, reset: false,
+    touchTargetX: null, touchFireHeld: false,
+  });
+  const optionsRef = useRef<GameOptions>(loadOptions());
+  const rafRef     = useRef<number>(0);
+  const lastRef    = useRef<number>(0);
+  const timeRef    = useRef<number>(0);
+  const assetsRef  = useRef<GameAssets>({ backgrounds: [], loaded: false });
+  const touchFireTimerRef = useRef<number>(0);
+  const fullscreenAttemptedRef = useRef(false);
   const [muted, setMuted] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const [sfxVol, setSfxVolState] = useState(getSfxVolume());
@@ -47,6 +78,12 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     canvas.style.top    = `${(ph - ch) / 2}px`;
   }, [canvasRef]);
 
+  const saveProgress = useCallback((state: GameState) => {
+    localStorage.setItem('pang_genesis_best', String(state.bestScore));
+    localStorage.setItem('pang_genesis_stars', JSON.stringify(state.levelStars));
+    localStorage.setItem('pang_genesis_level_scores', JSON.stringify(state.levelBestScores));
+  }, []);
+
   const loop = useCallback((timestamp: number) => {
     const dt = Math.min((timestamp - lastRef.current) / 1000, 0.05);
     lastRef.current = timestamp;
@@ -57,23 +94,89 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     const ctx = canvas.getContext('2d');
     if (!ctx) { rafRef.current = requestAnimationFrame(loop); return; }
 
+    // auto-fire continu pour le tir tactile
+    if (inputRef.current.touchFireHeld) {
+      touchFireTimerRef.current += dt;
+      if (touchFireTimerRef.current >= TOUCH_AUTO_FIRE_INTERVAL) {
+        inputRef.current.fire = true;
+        touchFireTimerRef.current = 0;
+        void initAudio();
+      }
+    } else {
+      touchFireTimerRef.current = 0;
+    }
+
     const input = { ...inputRef.current };
     inputRef.current.fire = false;
     inputRef.current.pause = false;
     inputRef.current.enter = false;
     inputRef.current.info = false;
-    const prevBest = stateRef.current.bestScore;
-    stateRef.current = update(stateRef.current, dt, input);
-    if (stateRef.current.bestScore > prevBest) {
-      localStorage.setItem('pang_genesis_best', String(stateRef.current.bestScore));
-      localStorage.setItem('pang_genesis_stars', JSON.stringify(stateRef.current.levelStars));
-      localStorage.setItem('pang_genesis_level_scores', JSON.stringify(stateRef.current.levelBestScores));
+    inputRef.current.options = false;
+    inputRef.current.quit = false;
+    inputRef.current.resetLevel = false;
+    inputRef.current.resetFull = false;
+    inputRef.current.reset = false;
+
+    // Navigation clavier dans l'écran options (on a accès à optionsRef)
+    const state = stateRef.current;
+    if (state.phase === 'options') {
+      if (input.left)  state.optionsCursor = Math.max(0, state.optionsCursor - 1);
+      if (input.right) state.optionsCursor = Math.min(3, state.optionsCursor + 1);
+      if (input.fire || input.enter) {
+        const opts = optionsRef.current;
+        switch (state.optionsCursor) {
+          case 0: updateOptions({ invertZones: !opts.invertZones }); break;
+          case 1: {
+            const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
+            const ci = ratios.indexOf(opts.zoneSplitRatio);
+            updateOptions({ zoneSplitRatio: ratios[(ci + 1) % ratios.length] });
+            break;
+          }
+          case 2: {
+            const zones = [0, 10, 20, 30, 40, 50];
+            const zi = zones.indexOf(opts.deadZonePx);
+            updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
+            break;
+          }
+          case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+        }
+        input.fire = false; input.enter = false;
+      }
+      if (input.pause || input.info) {
+        state.phase = state.prevPhase;
+        input.pause = false; input.info = false;
+      }
     }
 
-    render(ctx, stateRef.current, timeRef.current, assetsRef.current);
+    // Reset progression depuis l'écran titre
+    if (input.reset && state.phase === 'title') {
+      const keys = ['pang_genesis_best', 'pang_genesis_stars', 'pang_genesis_level_scores', 'pang_genesis_played', 'pang_genesis_options'];
+      keys.forEach(k => localStorage.removeItem(k));
+      const fresh = makeInitialState();
+      state.bestScore = 0;
+      state.maxLevelReached = 1;
+      state.level = 1;
+      state.levelStars = [];
+      state.levelBestScores = [];
+      state.score = 0;
+      state.phase = 'title';
+      state.player = fresh.player;
+      state.difficulty = fresh.difficulty;
+      optionsRef.current = { ...DEFAULT_OPTIONS };
+      saveOptions(optionsRef.current);
+      input.reset = false;
+    }
+
+    const prevBest = stateRef.current.bestScore;
+    stateRef.current = update(stateRef.current, dt, input, optionsRef.current);
+    if (stateRef.current.bestScore > prevBest) {
+      saveProgress(stateRef.current);
+    }
+
+    render(ctx, stateRef.current, timeRef.current, assetsRef.current, optionsRef.current);
 
     rafRef.current = requestAnimationFrame(loop);
-  }, [canvasRef]);
+  }, [canvasRef, saveProgress]);
 
   useEffect(() => {
     loadAssets().then(assets => {
@@ -88,6 +191,11 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     await initSounds();
     await initMusic();
     setAudioReady(true);
+
+    if (!fullscreenAttemptedRef.current) {
+      fullscreenAttemptedRef.current = true;
+      requestFullscreenAndLock();
+    }
   }, [audioReady]);
 
   const toggleMute = useCallback(() => {
@@ -108,8 +216,175 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     setMusicVolState(v);
   }, []);
 
+  // Mise à jour des options
+  const updateOptions = useCallback((partial: Partial<GameOptions>) => {
+    optionsRef.current = { ...optionsRef.current, ...partial };
+    saveOptions(optionsRef.current);
+  }, []);
+
+  // Gérer les choix de la boîte de confirmation
+  const handleConfirm = useCallback((action: 'yes' | 'no' | 'cancel') => {
+    const dialog = stateRef.current.confirmDialog;
+    if (!dialog || !dialog.action) return;
+    stateRef.current.confirmDialog = null;
+    if (action === 'no' || action === 'cancel') return;
+
+    const s = stateRef.current;
+    s.phase = s.prevPhase as GameState['phase'];
+    const level = s.level;
+    const resetShared = () => {
+      s.score = 0; s.combo = 0; s.comboTimer = 0; s.comboDisplay = 0;
+      s.streak = 0; s.balls = []; s.hooks = []; s.powerUps = [];
+      s.flashParticles = []; s.floaters = []; s.milestones = [];
+      s.shake = { intensity: 0, duration: 0, elapsed: 0 };
+      s.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0, magnetTimer: 0 };
+      s.player = makeInitialState().player;
+      s.ballsPending = []; s.spawnTimer = 0; s.platforms = [];
+      s.hooksFired = 0; s.hooksHit = 0; s.levelElapsed = 0; s.levelMaxCombo = 0;
+      s.levelHits = 0;
+    };
+    if (dialog.action === 'quit') {
+      saveProgress(s);
+      resetShared();
+      s.phase = 'title';
+      s.level = 1;
+      s.difficulty = makeInitialState().difficulty;
+      return;
+    }
+    resetShared();
+    if (dialog.action === 'resetFull') {
+      s.player.lives = 3;
+    }
+    startLevel(s, level);
+    s.phase = 'playing';
+  }, [saveProgress]);
+
+  const confirmChoice = useCallback((accept: boolean) => {
+    handleConfirm(accept ? 'yes' : 'no');
+  }, [handleConfirm]);
+
+  // Convertir coordonnées écran → canvas logique
+  const screenToCanvas = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = LOGICAL_WIDTH / rect.width;
+    const scaleY = LOGICAL_HEIGHT / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  }, [canvasRef]);
+
+  // Vérifier si un point logique est dans un rectangle
+  const hitRect = (px: number, py: number, rx: number, ry: number, rw: number, rh: number) => {
+    return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+  };
+
+  // Handler principal pour les overlay zones tactiles
+  const handleTouchZone = useCallback((zone: 'move' | 'fire', e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const coords = screenToCanvas(e.clientX, e.clientY);
+    if (!coords) return;
+
+    const state = stateRef.current;
+    const phase = state.phase;
+
+    void initAudio();
+
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    // Gestion des phases non-jeu
+    if (phase !== 'playing' && phase !== 'paused' && phase !== 'options') {
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        if (phase === 'title') {
+          // Détecter le bouton tapé sur l'écran titre
+          const maxLvl = state.maxLevelReached;
+          if (coords.y >= 295 && coords.y < 330) {
+            inputRef.current.fire = true;
+          } else if (coords.y >= 330 && coords.y < 365 && maxLvl > 1) {
+            inputRef.current.enter = true;
+          } else if (coords.y >= 365 && coords.y < 400) {
+            inputRef.current.options = true;
+          } else if (coords.y >= 400 && coords.y < 435 && maxLvl > 1) {
+            inputRef.current.reset = true;
+          } else {
+            inputRef.current.fire = true;
+          }
+        } else {
+          inputRef.current.fire = true;
+          inputRef.current.enter = true;
+        }
+      }
+      return;
+    }
+    if (phase === 'paused') {
+      if (state.confirmDialog) {
+        confirmChoice(coords.x < LOGICAL_WIDTH / 2);
+        return;
+      }
+      const cx = LOGICAL_WIDTH / 2;
+      for (const btn of PAUSE_BUTTONS) {
+        const bx = cx - 130;
+        if (hitRect(coords.x, coords.y, bx, btn.y, 260, btn.h)) {
+          switch (btn.action) {
+            case 'resume': inputRef.current.pause = true; break;
+            case 'quit': stateRef.current.confirmDialog = { visible: true, message: 'Retourner au menu principal ?', action: 'quit' }; break;
+            case 'resetLevel': stateRef.current.confirmDialog = { visible: true, message: 'Recommencer le niveau ?', action: 'resetLevel' }; break;
+            case 'resetFull': stateRef.current.confirmDialog = { visible: true, message: 'Tout recommencer (vies aussi) ?', action: 'resetFull' }; break;
+            case 'options': stateRef.current.prevPhase = 'paused'; inputRef.current.options = true; break;
+          }
+          return;
+        }
+      }
+      return;
+    }
+    if (phase === 'options') {
+      // Taper sur une ligne d'option la toggle
+      const opts = optionsRef.current;
+      if (coords.y >= 78 && coords.y < 105) {
+        updateOptions({ invertZones: !opts.invertZones });
+      } else if (coords.y >= 106 && coords.y < 133) {
+        const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
+        const ci = ratios.indexOf(opts.zoneSplitRatio);
+        updateOptions({ zoneSplitRatio: ratios[(ci + 1) % ratios.length] });
+      } else if (coords.y >= 134 && coords.y < 161) {
+        const zones = [0, 10, 20, 30, 40, 50];
+        const zi = zones.indexOf(opts.deadZonePx);
+        updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
+      } else if (coords.y >= 162 && coords.y < 189) {
+        updateOptions({ classicMode: !opts.classicMode });
+      }
+      return;
+    }
+    // Phase playing
+    if (zone === 'move') {
+      inputRef.current.touchTargetX = coords.x;
+    }
+    if (zone === 'fire') {
+      inputRef.current.fire = true;
+      inputRef.current.touchFireHeld = true;
+    }
+  }, [screenToCanvas, canvasRef, initAudio, confirmChoice]);
+
+  const handleTouchZoneEnd = useCallback((zone: 'move' | 'fire', e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (zone === 'move') inputRef.current.touchTargetX = null;
+    if (zone === 'fire') inputRef.current.touchFireHeld = false;
+  }, []);
+
+  // Gestion du bouton plein écran
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      requestFullscreenAndLock();
+    }
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const phase = stateRef.current.phase;
       if (e.code === 'ArrowLeft')  { e.preventDefault(); inputRef.current.left  = true; }
       if (e.code === 'ArrowRight') { e.preventDefault(); inputRef.current.right = true; }
       if (e.code === 'Space')      {
@@ -133,6 +408,26 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       if (e.code === 'KeyI') {
         e.preventDefault();
         inputRef.current.info = true;
+      }
+      if (e.code === 'KeyO') {
+        e.preventDefault();
+        inputRef.current.options = true;
+      }
+      if (e.code === 'KeyR' && phase === 'title') {
+        e.preventDefault();
+        inputRef.current.reset = true;
+      }
+      if (e.code === 'KeyQ' && phase === 'paused' && !stateRef.current.confirmDialog) {
+        e.preventDefault();
+        stateRef.current.confirmDialog = { visible: true, message: 'Retourner au menu principal ?', action: 'quit' };
+      }
+      if (e.code === 'Enter' && stateRef.current.confirmDialog) {
+        e.preventDefault();
+        confirmChoice(true);
+      }
+      if (e.code === 'Escape' && stateRef.current.confirmDialog) {
+        e.preventDefault();
+        stateRef.current.confirmDialog = null;
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -162,7 +457,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup',   onMouseUp);
     };
-  }, [initAudio, toggleMute]);
+  }, [initAudio, toggleMute, confirmChoice]);
 
   useEffect(() => {
     fitCanvas();
@@ -188,9 +483,25 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const handleTouchFire  = useCallback(() => { inputRef.current.fire = true; inputRef.current.fireHeld = true; void initAudio(); }, [initAudio]);
   const handleTouchFireUp = useCallback(() => { inputRef.current.fireHeld = false; }, []);
 
+  // Boutons coin pause/info (tactile)
+  const handleTouchPause = useCallback((e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    inputRef.current.pause = true;
+    void initAudio();
+  }, [initAudio]);
+  const handleTouchInfo = useCallback((e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    inputRef.current.info = true;
+    void initAudio();
+  }, [initAudio]);
+
   return {
     handleTouchLeft, handleTouchRight, handleTouchFire, handleTouchFireUp,
     toggleMute, muted,
     sfxVol, musicVol, handleSfxVol, handleMusicVol,
+    optionsRef, updateOptions, confirmChoice,
+    handleTouchZone, handleTouchZoneEnd,
+    toggleFullscreen,
+    handleTouchPause, handleTouchInfo,
   };
 }

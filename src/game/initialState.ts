@@ -1,4 +1,4 @@
-import { GameState, Player, Platform } from './types';
+import { GameState, Player, Platform, DEFAULT_OPTIONS, GameOptions } from './types';
 import {
   LOGICAL_WIDTH, FLOOR_Y, CEILING_Y,
   BALL_RADII, BALL_SPEEDS, BALL_COLORS, MAX_LIVES,
@@ -157,5 +157,7 @@ export function makeInitialState(): GameState {
     hooksHit: 0,
     levelElapsed: 0,
     levelMaxCombo: 0,
+    confirmDialog: null,
+    optionsCursor: 0,
   };
 }

@@ -1,4 +1,4 @@
-import { GameState, Ball, InputState, ONBOARDING_STEPS } from './types';
+import { GameState, Ball, InputState, GameOptions, ONBOARDING_STEPS } from './types';
 import {
   LOGICAL_WIDTH, LOGICAL_HEIGHT, FLOOR_Y, CEILING_Y,
   GRAVITY, BALL_RADII, BALL_SPEEDS,
@@ -122,7 +122,8 @@ function updateAmbient(state: GameState, dt: number, hue: string) {
   }
 }
 
-export function update(state: GameState, dt: number, input: InputState): GameState {
+export { startLevel };
+export function update(state: GameState, dt: number, input: InputState, options?: GameOptions): GameState {
   dt = Math.min(dt, 0.05);
   const s = state;
   const effects = s.effects;
@@ -130,7 +131,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
   // pause
   if (input.pause && (s.phase === 'playing' || s.phase === 'paused')) {
     if (s.phase === 'playing') { s.prevPhase = s.phase; s.phase = 'paused'; }
-    else { s.phase = s.prevPhase as any; }
+    else { if (!s.confirmDialog) s.phase = s.prevPhase as any; }
     input.pause = false;
   }
   if (s.phase === 'paused') { updateAmbient(s, dt, getTheme(s.level).floorGlow); return s; }
@@ -142,6 +143,17 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
     input.info = false;
   }
   if (s.phase === 'info') { return s; }
+
+  // options overlay (toggle with O or from pause menu)
+  if (input.options) {
+    if (s.phase === 'options') { s.phase = s.prevPhase; }
+    else { s.prevPhase = s.phase; s.phase = 'options'; s.optionsCursor = 0; }
+    input.options = false;
+  }
+  if (s.phase === 'options') {
+    // navigation curseur + toggle gérés dans useGame.ts (accès à optionsRef)
+    return s;
+  }
 
   // level select
   if (s.phase === 'levelselect') {
@@ -245,8 +257,18 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
   if (player.invincible > 0) player.invincible -= dt;
 
   const halfW = PLAYER_WIDTH / 2;
-  if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
-  if (input.right) player.x += PLAYER_SPEED * effectiveDt;
+  // Mouvement tactile : suivi du doigt
+  if (input.touchTargetX !== null) {
+    const deadZone = options?.deadZonePx ?? 0;
+    const dx = input.touchTargetX - player.x;
+    const maxStep = PLAYER_SPEED * effectiveDt;
+    if (Math.abs(dx) > deadZone) {
+      player.x += Math.sign(dx) * Math.min(Math.abs(dx), maxStep);
+    }
+  } else {
+    if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
+    if (input.right) player.x += PLAYER_SPEED * effectiveDt;
+  }
   player.x = clamp(player.x, halfW, LOGICAL_WIDTH - halfW);
   player.y = FLOOR_Y - PLAYER_HEIGHT / 2 - PLAYER_Y_OFFSET;
   player.squash = player.squash + (1 - player.squash) * Math.min(dt * 8, 1);

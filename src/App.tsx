@@ -1,37 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { useGame } from './game/useGame';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './game/constants';
-
-interface TouchBtnProps {
-  label: string;
-  onDown?: () => void;
-  onUp?: () => void;
-  onClick?: () => void;
-  className?: string;
-  style?: React.CSSProperties;
-}
-function TouchBtn({ label, onDown, onUp, onClick, className = '', style = {} }: TouchBtnProps) {
-  return (
-    <button
-      className={`select-none touch-none flex items-center justify-center
-        rounded-full font-bold text-white text-opacity-90
-        active:scale-95 transition-transform ${className}`}
-      style={{
-        background: 'rgba(80,120,255,0.22)',
-        border: '2px solid rgba(100,160,255,0.45)',
-        boxShadow: '0 0 18px rgba(80,120,255,0.3)',
-        fontSize: 24,
-        userSelect: 'none',
-        ...style,
-      }}
-      onPointerDown={(e) => { e.preventDefault(); onDown?.(); }}
-      onPointerUp={(e)   => { e.preventDefault(); onUp?.(); onClick?.(); }}
-      onPointerLeave={(e)=> { e.preventDefault(); onUp?.(); }}
-    >
-      {label}
-    </button>
-  );
-}
 
 function VolumeSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -54,11 +23,39 @@ function VolumeSlider({ label, value, onChange }: { label: string; value: number
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   const {
-    handleTouchLeft, handleTouchRight, handleTouchFire, handleTouchFireUp,
     toggleMute, muted,
     sfxVol, musicVol, handleSfxVol, handleMusicVol,
+    handleTouchZone, handleTouchZoneEnd,
+    optionsRef, toggleFullscreen,
+    handleTouchPause, handleTouchInfo,
   } = useGame(canvasRef);
+
+  const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
+    const opts = optionsRef.current;
+    const splitRatio = opts.classicMode ? 0.5 : (opts.invertZones ? 1 - opts.zoneSplitRatio : opts.zoneSplitRatio);
+    const leftPct = side === 'left' ? `${splitRatio * 100}%` : `${(1 - splitRatio) * 100}%`;
+    return {
+      position: 'absolute',
+      top: 0,
+      [side]: 0,
+      width: leftPct,
+      height: '100%',
+      touchAction: 'none',
+      userSelect: 'none',
+      zIndex: 10,
+    };
+  }, [optionsRef]);
 
   return (
     <div
@@ -99,7 +96,6 @@ export default function App() {
         </span>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* sliders de volume */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <VolumeSlider label="SFX" value={sfxVol} onChange={handleSfxVol} />
             <VolumeSlider label="MUS" value={musicVol} onChange={handleMusicVol} />
@@ -120,6 +116,24 @@ export default function App() {
           >
             {muted ? '🔇' : '🔊'}
           </button>
+
+          {isDesktop && (
+            <button
+              onClick={toggleFullscreen}
+              style={{
+                background: 'rgba(80,120,255,0.18)',
+                border: '1px solid rgba(100,160,255,0.35)',
+                color: '#c0d8ff',
+                borderRadius: 8,
+                padding: '4px 10px',
+                fontSize: 12,
+                fontFamily: '"Courier New", monospace',
+                cursor: 'pointer',
+              }}
+            >
+              ⛶
+            </button>
+          )}
         </div>
       </div>
 
@@ -140,41 +154,53 @@ export default function App() {
             imageRendering: 'pixelated',
           }}
         />
-      </div>
 
-      <div
-        style={{
-          width: '100%',
-          maxWidth: LOGICAL_WIDTH,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '10px 20px 14px',
-          gap: 12,
-          flexShrink: 0,
-        }}
-        className="touch-controls"
-      >
-        <TouchBtn
-          label="◀"
-          onDown={() => handleTouchLeft(true)}
-          onUp={() => handleTouchLeft(false)}
-          className="w-24 h-24"
-        />
+        {/* Zones tactiles transparentes — cachées sur desktop */}
+        <div className="touch-overlay">
+          {/* Zone gauche : fire */}
+          <div
+            style={getZoneStyle('left')}
+            onPointerDown={(e) => handleTouchZone('fire', e)}
+            onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
+            onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
+            onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
+          />
+          {/* Zone droite : déplacement (joystick) */}
+          <div
+            style={getZoneStyle('right')}
+            onPointerDown={(e) => handleTouchZone('move', e)}
+            onPointerMove={(e) => handleTouchZone('move', e)}
+            onPointerUp={(e) => handleTouchZoneEnd('move', e)}
+            onPointerLeave={(e) => handleTouchZoneEnd('move', e)}
+            onPointerCancel={(e) => handleTouchZoneEnd('move', e)}
+          />
+        </div>
 
-        <TouchBtn
-          label="🔥"
-          onDown={() => handleTouchFire()}
-          onUp={() => handleTouchFireUp()}
-          className="w-28 h-28"
-        />
-
-        <TouchBtn
-          label="▶"
-          onDown={() => handleTouchRight(true)}
-          onUp={() => handleTouchRight(false)}
-          className="w-24 h-24"
-        />
+        {/* Boutons coin pause/info (tactile seulement) */}
+        <div className="touch-corner-btns" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'none' }}>
+          <button
+            className="touch-corner-btn"
+            onPointerDown={handleTouchPause}
+            style={{
+              position: 'absolute', top: 4, left: 4,
+              width: 36, height: 36, borderRadius: 8,
+              background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)',
+              color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >⏸</button>
+          <button
+            className="touch-corner-btn"
+            onPointerDown={handleTouchInfo}
+            style={{
+              position: 'absolute', top: 4, right: 4,
+              width: 36, height: 36, borderRadius: 8,
+              background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)',
+              color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >ℹ</button>
+        </div>
       </div>
 
       <div
@@ -188,12 +214,14 @@ export default function App() {
         }}
         className="keyboard-hint"
       >
-        ← → DÉPLACER &nbsp;|&nbsp; ESPACE / CLIC TIRER &nbsp;|&nbsp; I INFOS &nbsp;|&nbsp; M SILENCE &nbsp;|&nbsp; P PAUSE &nbsp;|&nbsp; ENTRÉE NIVEAUX
+        ← → DÉPLACER &nbsp;|&nbsp; ESPACE TIRER / CHARGER &nbsp;|&nbsp; I INFOS &nbsp;|&nbsp; O OPTIONS &nbsp;|&nbsp; M SILENCE &nbsp;|&nbsp; P PAUSE &nbsp;|&nbsp; ENTRÉE NIVEAUX &nbsp;|&nbsp; R RESET
       </div>
 
       <style>{`
         @media (hover: hover) and (pointer: fine) {
           .touch-controls { display: none !important; }
+          .touch-overlay { display: none !important; }
+          .touch-corner-btns { display: none !important; }
         }
         @media (hover: none) or (pointer: coarse) {
           .keyboard-hint { display: none !important; }

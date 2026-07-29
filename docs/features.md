@@ -36,12 +36,32 @@
 
 ## Contrôles
 
+### Clavier
 - **← →** : déplacement du vaisseau
 - **ESPACE** : tirer le grappin (maintenir pour charger)
 - **P** : pause
+- **I** : infos
+- **O** : options
 - **M** : muet
 - **ENTRÉE** : sélection de niveau / retour au titre
-- Tactile : boutons virtuels L/R/FIRE
+- **Q** (pause) : quitter
+
+### Souris
+- **Clic gauche** : tirer (maintenir pour charger)
+
+### Tactile (mobile/tablette)
+- **Zone gauche** (50% écran par défaut) : déplacement par glissement horizontal. Le vaisseau suit le doigt.
+- **Zone droite** (50% écran) : tap = 1 tir, maintenir = auto-feu continu (toutes les 250ms).
+- **⏸️ Haut-gauche** : pause. ℹ️ **Haut-droite** : infos.
+- **Menu pause** : 4 boutons tactiles (Reprendre, Recommencer niveau, Recommencer complet, Quitter) avec confirmation OUI/NON.
+- Zones invisibles — rien n'est affiché sur l'écran de jeu.
+
+### Configuration
+Menu Options (O au clavier, ou depuis la pause) :
+- Inverser zones (gaucher)
+- Taille zone gauche (30%-70%)
+- Zone morte (0-50px)
+- Mode classique (boutons bas)
 
 ## Scoring
 
