@@ -164,6 +164,23 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
   }
 }
 
+const PAUSE_TIPS: string[] = [
+  'Tire vers le haut : le grappin traverse plusieurs balles',
+  'Un combo ×5 donne 250 points bonus',
+  'La bombe détruit toutes les balles d\'un coup',
+  'Le bouclier te protège des balles 10 secondes',
+  'Attrape l\'aimant pour que les bonus volent vers toi',
+  'Précision ≥90% = +1★ sur ta note de niveau',
+  'Termine en ≤3s par balle pour +1★',
+  'Un combo ≥15 = +0.5★',
+  'Les plateformes apparaissent au niveau 8',
+  'Le score ×2 double tous tes gains 10 secondes',
+  'Le bonus de hauteur peut aller jusqu\'à ×1,5',
+  'Tirer chargé (espace maintenu) élargit le grappin',
+  'Tirs limités à partir du niveau 60',
+  '3★ minimum si tu ne prends aucun dégât',
+];
+
 export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   if (state.phase !== 'paused') return;
   ctx.fillStyle = 'rgba(3,4,15,0.82)';
@@ -184,11 +201,17 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState
   ctx.fillText('PAUSE', 0, -10);
   ctx.restore();
 
+  // astuce aléatoire qui change toutes les 4s
+  const tipIdx = Math.floor(time / 4) % PAUSE_TIPS.length;
+  ctx.font = '14px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(200,220,255,0.8)';
+  ctx.shadowBlur = 0;
+  ctx.fillText('💡 ' + PAUSE_TIPS[tipIdx], cx, cy + 50);
+
   ctx.font = '18px "Courier New", monospace';
   ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
-  ctx.shadowBlur = 0;
-  ctx.fillText('P POUR REPRENDRE', cx, cy + 50);
-  ctx.fillText('Q POUR QUITTER', cx, cy + 80);
+  ctx.fillText('P POUR REPRENDRE', cx, cy + 90);
+  ctx.fillText('Q POUR QUITTER', cx, cy + 118);
 }
 
 export function drawLevelSelect(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
@@ -296,7 +319,7 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, tim
     ctx.fillText(`MEILLEUR SCORE  ${bestScore.toString().padStart(7,'0')}`, cx, cy - 30);
 
     const totalStars = state.levelStars.reduce((sum, ls) => sum + ls.stars, 0);
-    const maxStars = Math.max(state.levelStars.length * 3, 1);
+    const maxStars = Math.max(state.levelStars.length * 5, 1);
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = 'rgba(200,220,255,0.7)';
     ctx.fillText(`ÉTOILES : ${totalStars} / ${maxStars}`, cx, cy - 8);
@@ -495,8 +518,9 @@ export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState,
     'HAUTEUR : les balles près du plafond rapportent jusqu\'à 1,5×',
     'VÉLOCITÉ : les balles rapides rapportent jusqu\'à 1,3×',
     'PRÉCISION : bonus de fin de niveau basé sur % de tirs réussis',
+    'TEMPS : terminez rapidement pour un bonus vitesse ×niveau',
+    'ÉTOILES 1-5★ : dégâts + précision + vitesse + combo max',
     'PLATEFORMES : les plateformes peuvent droper bonus ou malus',
-    '3★ si vous ne prenez aucun dégât dans le niveau',
   ];
   cyy += 24;
   for (const tip of tips) {
