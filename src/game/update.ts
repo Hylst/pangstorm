@@ -61,6 +61,8 @@ function startLevel(state: GameState, level: number) {
   state.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0, magnetTimer: 0 };
   state.player.lives = Math.min(diff.maxLives, MAX_LIVES);
   state.platforms = makePlatforms(level);
+  state.hooksFired = 0;
+  state.hooksHit = 0;
 
   if (diff.spawnDelay > 0) {
     state.ballsPending = allBalls;
@@ -184,6 +186,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
       s.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0, magnetTimer: 0 };
       s.player = makeInitialPlayer(); s.difficulty = getDifficulty(1);
       s.scoreMilestone = 0; s.totalPopped = 0; s.ballsPending = []; s.spawnTimer = 0; s.platforms = [];
+      s.hooksFired = 0; s.hooksHit = 0;
     }
     return s;
   }
@@ -219,8 +222,9 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
   if (input.fireHeld) { player.charge = Math.min(1, player.charge + dt * 0.8); if (player.charge >= 0.8 && prevCharge < 0.8) playSfx('charge'); }
   else { player.charge = Math.max(0, player.charge - dt * 3); }
 
-  if (input.fire && s.hooks.length < (effects.multishotTimer > 0 ? 3 : 1)) {
+  if (input.fire && (diff.maxShots === 0 || s.hooksFired < diff.maxShots) && s.hooks.length < (effects.multishotTimer > 0 ? 3 : 1)) {
     const count = effects.multishotTimer > 0 ? 3 : 1;
+    s.hooksFired += count;
     for (let i = 0; i < count; i++) {
       const spread = count === 1 ? 0 : (i - 1) * 40;
       s.hooks.push({ id: uid(), x: player.x + spread, tipY: player.y - PLAYER_HEIGHT / 2, baseY: player.y - PLAYER_HEIGHT / 2, active: true, spawnScale: 1.3, width: HOOK_WIDTH * (1 + player.charge * 1.5), color: player.charge > 0.8 ? '#ffdd00' : '#aaddff' });
@@ -292,6 +296,7 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
       const inVertical = hook.tipY <= ball.y + ball.radius && hook.baseY >= ball.y - ball.radius;
       if (dx <= ball.radius && inVertical) {
         hookIdsToRemove.add(hook.id); hook.active = false;
+        s.hooksHit++;
 
         ball.remainingHits--;
         if (ball.remainingHits > 0) { ball.flash = 1; const kickDir = hook.x < ball.x ? 1 : -1; ball.vx += kickDir * 120; ball.vy = -Math.abs(ball.vy) * 0.8 - 80; playSfx('bounce'); break; }
@@ -300,7 +305,11 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
         s.combo += 1; s.comboTimer = COMBO_WINDOW; s.comboDisplay = 1.8; s.streak += 1; s.totalPopped += 1;
         const scoreBoost = effects.scoreBoostTimer > 0 ? 2 : 1;
         const multiplier = s.combo * scoreBoost;
-        const gained = Math.floor(BASE_SCORE[ball.tier] * multiplier * diff.speedMultiplier);
+        const heightFactor = (ball.y - CEILING_Y) / (FLOOR_Y - CEILING_Y);
+        const heightBonus = 1 + (1 - heightFactor) * 0.5;
+        const speedFactor = Math.min(Math.abs(ball.vy) / GRAVITY, 1);
+        const speedBonus = 1 + speedFactor * 0.3;
+        const gained = Math.floor(BASE_SCORE[ball.tier] * multiplier * diff.speedMultiplier * heightBonus * speedBonus);
         s.score += gained;
         addFloater(s, ball.x, ball.y - ball.radius - 10, `+${gained}`, ball.glowColor);
         if (ball.tier === 0) { spawnParticles(s.flashParticles, ball.x, ball.y, '#ffffff', 8, 100, Math.PI); spawnRing(s.flashParticles, ball.x, ball.y, 'rgba(255,255,200,0.8)', 6, 50); }
@@ -416,6 +425,15 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
     addFloater(s, LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 60, `NIVEAU TERMINÉ +${bonus}`, '#39ff14');
     triggerShake(s, 3, 0.25); playSfx('levelup');
     if (s.levelHits === 0) { addMilestone(s, 'NIVEAU PARFAIT !', `+${1000 * s.level} bonus`, '#39ff14'); s.score += 1000 * s.level; }
+    // bonus de précision
+    if (s.hooksFired > 0) {
+      const accuracy = s.hooksHit / s.hooksFired;
+      const accBonus = Math.floor(accuracy * 200 * s.level);
+      if (accBonus > 0) {
+        s.score += accBonus;
+        addFloater(s, LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 90, `PRÉCISION ${Math.round(accuracy * 100)}% +${accBonus}`, '#ffdd00');
+      }
+    }
   }
 
   // enregistrer best score / détection de record

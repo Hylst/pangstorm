@@ -56,6 +56,11 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     ctx.font = '12px "Courier New", monospace';
     ctx.fillStyle = 'rgba(200,220,255,0.6)';
     ctx.fillText(`RECORD ${bestScore.toString().padStart(7,'0')}`, 16, 52);
+    if (state.difficulty.maxShots > 0) {
+      const remaining = state.difficulty.maxShots - state.hooksFired;
+      ctx.fillStyle = remaining <= 3 ? '#ff3a6e' : 'rgba(255,200,100,0.7)';
+      ctx.fillText(`TIRS ${Math.max(0, remaining)}/${state.difficulty.maxShots}`, 16, 66);
+    }
   }
 
   ctx.textAlign = 'center';

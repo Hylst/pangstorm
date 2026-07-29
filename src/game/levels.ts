@@ -12,6 +12,7 @@ export interface DifficultyProfile {
   maxLives: number;
   platformCount: number;
   platformHp: number;
+  maxShots: number;      // 0 = illimité
 }
 
 export function getDifficulty(level: number): DifficultyProfile {
@@ -30,6 +31,7 @@ export function getDifficulty(level: number): DifficultyProfile {
     maxLives:           3,
     platformCount:      0,
     platformHp:         1,
+    maxShots:           0,
   };
 
   if (l >= 12) base.homingChance = Math.min(0.3, (l - 11) * 0.0034);
@@ -45,6 +47,7 @@ export function getDifficulty(level: number): DifficultyProfile {
     base.platformCount = Math.min(1 + Math.floor((l - 7) / 16), 6);
     base.platformHp = l >= 45 ? 3 : l >= 22 ? 2 : 1;
   }
+  if (l >= 60) base.maxShots = 30 + Math.floor((l - 60) / 10) * 4;
 
   return base;
 }

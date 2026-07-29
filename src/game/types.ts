@@ -128,6 +128,8 @@ export interface GameState {
   prevPhase:     GamePhase;
   platforms:     Platform[];
   levelBestScores: LevelScore[];
+  hooksFired: number;
+  hooksHit: number;
 }
 
 export interface Ambient {

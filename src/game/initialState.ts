@@ -153,5 +153,7 @@ export function makeInitialState(): GameState {
     prevPhase: 'title',
     platforms: [],
     levelBestScores: [],
+    hooksFired: 0,
+    hooksHit: 0,
   };
 }
