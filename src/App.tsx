@@ -49,7 +49,7 @@ export default function App() {
     optionsRef, toggleFullscreen,
     handleTouchPause, handleTouchInfo,
     stateRef, requestTiltPermission, tiltEnabled,
-    phaseVersion,
+    confirmChoice, phaseVersion,
   } = useGame(canvasRef);
 
   const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
@@ -283,8 +283,8 @@ export default function App() {
               (window as any).__touchDbg = { count: (window as any).__touchDbg?.count ?? 0, x: Math.round(cx), y: Math.round(cy), hit: 'start' };
               if (phase === 'paused') {
                 if (confirm) {
-                  (window as any).__touchDbg.hit = 'dismiss-confirm';
-                  stateRef.current.confirmDialog = null;
+                  (window as any).__touchDbg = { count: ((window as any).__touchDbg?.count ?? 0) + 1, x: Math.round(cx), y: Math.round(cy), hit: 'confirm-' + (cx < LOGICAL_WIDTH / 2 ? 'oui' : 'non') };
+                  confirmChoice(cx < LOGICAL_WIDTH / 2);
                   return;
                 }
                 const mid = LOGICAL_WIDTH / 2;
