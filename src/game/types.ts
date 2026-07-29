@@ -206,6 +206,8 @@ export interface GameOptions {
   zoneSplitRatio: number;
   deadZonePx: number;
   classicMode: boolean;
+  touchSensitivity: number;
+  chromeLess: boolean;
 }
 
 export const DEFAULT_OPTIONS: GameOptions = {
@@ -213,6 +215,8 @@ export const DEFAULT_OPTIONS: GameOptions = {
   zoneSplitRatio: 0.5,
   deadZonePx: 10,
   classicMode: false,
+  touchSensitivity: 1.0,
+  chromeLess: false,
 };
 
 export interface PauseButton {

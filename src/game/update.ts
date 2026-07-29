@@ -260,8 +260,9 @@ export function update(state: GameState, dt: number, input: InputState, options?
   // Mouvement tactile : suivi du doigt
   if (input.touchTargetX !== null) {
     const deadZone = options?.deadZonePx ?? 0;
+    const sens = options?.touchSensitivity ?? 1.0;
     const dx = input.touchTargetX - player.x;
-    const maxStep = PLAYER_SPEED * effectiveDt;
+    const maxStep = PLAYER_SPEED * effectiveDt * sens;
     if (Math.abs(dx) > deadZone) {
       player.x += Math.sign(dx) * Math.min(Math.abs(dx), maxStep);
     }

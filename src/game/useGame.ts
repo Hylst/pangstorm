@@ -57,11 +57,13 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const timeRef    = useRef<number>(0);
   const assetsRef  = useRef<GameAssets>({ backgrounds: [], loaded: false });
   const touchFireTimerRef = useRef<number>(0);
+  const touchPosRef = useRef<{ x: number; y: number } | null>(null);
   const fullscreenAttemptedRef = useRef(false);
   const [muted, setMuted] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
   const [sfxVol, setSfxVolState] = useState(getSfxVolume());
   const [musicVol, setMusicVolState] = useState(getMusicVolume());
+  const [optionsVersion, setOptionsVersion] = useState(0); // force re-render quand options changent
 
   const fitCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -152,6 +154,27 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current, optionsRef.current);
 
+    // Feedback visuel joystick (cercle suiveur)
+    if (touchPosRef.current && stateRef.current.phase === 'playing') {
+      const p = touchPosRef.current;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,200,255,0.3)';
+      ctx.strokeStyle = 'rgba(100,200,255,0.7)';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(100,200,255,0.5)';
+      ctx.shadowBlur = 12;
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(100,200,255,0.7)';
+      ctx.fill();
+      ctx.restore();
+    }
+
     rafRef.current = requestAnimationFrame(loop);
   }, [canvasRef, saveProgress]);
 
@@ -197,6 +220,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const updateOptions = useCallback((partial: Partial<GameOptions>) => {
     optionsRef.current = { ...optionsRef.current, ...partial };
     saveOptions(optionsRef.current);
+    setOptionsVersion(v => v + 1);
   }, []);
 
   // Gérer les choix de la boîte de confirmation
@@ -354,10 +378,9 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       return;
     }
     if (phase === 'options') {
-      // Détection de ligne par formule (pas de magic numbers)
       const opts = optionsRef.current;
       const row = Math.floor((coords.y - 75) / 30);
-      if (row >= 0 && row < 4) {
+      if (row >= 0 && row < 6) {
         switch (row) {
           case 0: updateOptions({ invertZones: !opts.invertZones }); break;
           case 1: {
@@ -373,6 +396,13 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
             break;
           }
           case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+          case 4: {
+            const sensitivities = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+            const si = sensitivities.indexOf(opts.touchSensitivity);
+            updateOptions({ touchSensitivity: sensitivities[(si + 1) % sensitivities.length] });
+            break;
+          }
+          case 5: updateOptions({ chromeLess: !opts.chromeLess }); break;
         }
       }
       return;
@@ -380,16 +410,19 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     // Phase playing
     if (zone === 'move') {
       inputRef.current.touchTargetX = coords.x;
+      touchPosRef.current = coords;
     }
     if (zone === 'fire') {
       inputRef.current.fire = true;
       inputRef.current.touchFireHeld = true;
+      touchPosRef.current = coords;
       (navigator as any).vibrate?.(8);
     }
   }, [screenToCanvas, canvasRef, initAudio, confirmChoice]);
 
   const handleTouchZoneEnd = useCallback((zone: 'move' | 'fire', e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
+    touchPosRef.current = null;
     if (zone === 'move') inputRef.current.touchTargetX = null;
     if (zone === 'fire') inputRef.current.touchFireHeld = false;
   }, []);
@@ -425,6 +458,14 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
           break;
         }
         case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+        case 4: {
+          const sensitivities = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+          const si = sensitivities.indexOf(opts.touchSensitivity);
+          const next = ((si + dir) % sensitivities.length + sensitivities.length) % sensitivities.length;
+          updateOptions({ touchSensitivity: sensitivities[next] });
+          break;
+        }
+        case 5: updateOptions({ chromeLess: !opts.chromeLess }); break;
       }
     };
 
@@ -442,7 +483,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       // Navigation clavier dans l'écran options
       if (phase === 'options') {
         if (e.code === 'ArrowUp')   { e.preventDefault(); stateRef.current.optionsCursor = Math.max(0, stateRef.current.optionsCursor - 1); return; }
-        if (e.code === 'ArrowDown') { e.preventDefault(); stateRef.current.optionsCursor = Math.min(3, stateRef.current.optionsCursor + 1); return; }
+        if (e.code === 'ArrowDown') { e.preventDefault(); stateRef.current.optionsCursor = Math.min(5, stateRef.current.optionsCursor + 1); return; }
         if (e.code === 'ArrowLeft')  { e.preventDefault(); cycleOption(-1); return; }
         if (e.code === 'ArrowRight') { e.preventDefault(); cycleOption(1); return; }
         if (e.code === 'Space') { e.preventDefault(); cycleOption(1); return; }
@@ -530,6 +571,24 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     };
     }, [initAudio, toggleMute, confirmChoice, updateOptions]);
 
+  // Bouton retour Android
+  useEffect(() => {
+    const onPop = () => {
+      const phase = stateRef.current.phase;
+      if (phase === 'paused' || phase === 'options' || phase === 'info' || phase === 'levelselect') {
+        if (stateRef.current.confirmDialog) {
+          stateRef.current.confirmDialog = null;
+        } else {
+          stateRef.current.phase = stateRef.current.prevPhase;
+        }
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    // Push un état pour activer popstate
+    history.pushState(null, '', window.location.href);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   useEffect(() => {
     fitCanvas();
     const ro = new ResizeObserver(fitCanvas);
@@ -574,5 +633,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     handleTouchZone, handleTouchZoneEnd,
     toggleFullscreen,
     handleTouchPause, handleTouchInfo,
+    stateRef,
   };
 }

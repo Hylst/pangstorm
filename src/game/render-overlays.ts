@@ -124,6 +124,8 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
   const step = state.onboardingStep < ONBOARDING_STEPS.length ? ONBOARDING_STEPS[state.onboardingStep] : null;
   if (!step) return;
 
+  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+
   ctx.fillStyle = 'rgba(3,4,15,0.82)';
   ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
@@ -149,11 +151,14 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
   ctx.fillStyle = '#aaccff';
   ctx.shadowBlur = 0;
 
-  wrapText(ctx, step.text, cx, cy - 10, 560, 24);
+  // Texte adapté au tactile
+  const stepText = isTouch ? stepTextTouch(step) : step.text;
+  wrapText(ctx, stepText, cx, cy - 10, 560, 24);
 
   ctx.font = '16px "Courier New", monospace';
   ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
-  ctx.fillText('ESPACE OU CLIC POUR CONTINUER', cx, cy + 50);
+  const contHint = isTouch ? 'TAPER POUR CONTINUER' : 'ESPACE OU CLIC POUR CONTINUER';
+  ctx.fillText(contHint, cx, cy + 50);
 
   if (step.highlight === 'player') {
     ctx.strokeStyle = '#00e5ff';
@@ -161,6 +166,15 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
     ctx.setLineDash([6, 6]);
     ctx.strokeRect(state.player.x - 40, state.player.y - 25, 80, 50);
     ctx.setLineDash([]);
+  }
+}
+
+function stepTextTouch(step: import('./types').OnboardingStep): string {
+  switch (step.id) {
+    case 2: return 'Glisse sur la moitié droite de l\'écran pour bouger le vaisseau.';
+    case 3: return 'Tape sur la moitié gauche de l\'écran pour lancer un grappin. Maintiens pour auto-feu.';
+    case 6: return 'Évite les orbes. Tu as 3 vies. Tu peux mettre en pause avec ⏸ en haut à gauche.';
+    default: return step.text;
   }
 }
 
@@ -699,10 +713,12 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
   const pulse = 0.5 + 0.5 * Math.sin(time * 3);
 
   const optionRows = [
-    { label: 'INVERSER ZONES',     value: opts.invertZones ? 'OUI' : 'NON' },
-    { label: 'TAILLE ZONE DEPLAC.', value: `${Math.round(opts.zoneSplitRatio * 100)}%` },
-    { label: 'ZONE MORTE',         value: `${opts.deadZonePx}px` },
-    { label: 'MODE CLASSIQUE',     value: opts.classicMode ? 'OUI' : 'NON' },
+    { label: 'INVERSER ZONES',      value: opts.invertZones ? 'OUI' : 'NON' },
+    { label: 'TAILLE ZONE DEPLAC.',  value: `${Math.round(opts.zoneSplitRatio * 100)}%` },
+    { label: 'ZONE MORTE',          value: `${opts.deadZonePx}px` },
+    { label: 'MODE CLASSIQUE',      value: opts.classicMode ? 'OUI' : 'NON' },
+    { label: 'SENSIBILITÉ',         value: `${opts.touchSensitivity.toFixed(1)}×` },
+    { label: 'SANS CHROME',         value: opts.chromeLess ? 'OUI' : 'NON' },
   ];
 
   for (let i = 0; i < optionRows.length; i++) {
@@ -746,7 +762,7 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
   ctx.fillStyle = 'rgba(200,220,255,0.45)';
   const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
   const hint = isTouch
-    ? 'TAPPER SUR UNE LIGNE POUR TOGGLER  •  O FERMER'
-    : '← → CURSEUR  •  ESPACE TOGGLER  •  O FERMER';
+    ? 'TAPER SUR UNE LIGNE POUR TOGGLER  •  O/ENTRÉE FERMER'
+    : '↑↓ CURSEUR  •  ←→ TOGGLER  •  ENTRÉE/O FERMER';
   ctx.fillText(hint, cx, yy);
 }

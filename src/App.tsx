@@ -39,6 +39,7 @@ export default function App() {
     handleTouchZone, handleTouchZoneEnd,
     optionsRef, toggleFullscreen,
     handleTouchPause, handleTouchInfo,
+    stateRef,
   } = useGame(canvasRef);
 
   const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
@@ -90,6 +91,7 @@ export default function App() {
           flexShrink: 0,
         }}
         className="top-bar"
+        hidden={optionsRef.current.chromeLess || false}
       >
         <span
           style={{
@@ -202,8 +204,21 @@ export default function App() {
           <button className="touch-corner-btn" onPointerDown={handleTouchPause}
             style={{ position: 'absolute', top: 4, left: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏸</button>
           <button className="touch-corner-btn" onPointerDown={handleTouchInfo}
-            style={{ position: 'absolute', top: 4, right: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ</button>
+            style={{ position: 'absolute', top: 4, right: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ          </button>
         </div>
+        {/* Orientation prompt portrait → paysage (tactile seulement) */}
+        {!isDesktop && <div className="orientation-prompt" style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 20,
+          background: 'rgba(3,4,15,0.92)',
+        }}>
+          <div style={{ fontSize: 60, animation: 'rotateHint 2s ease-in-out infinite' }}>↻</div>
+          <div style={{ fontFamily: '"Courier New", monospace', color: '#88aaff', fontSize: 18, textAlign: 'center', whiteSpace: 'nowrap' }}>
+            TOURNE TON APPAREIL<br/>EN MODE PAYSAGE
+          </div>
+        </div>}
       </div>
 
       <div
@@ -228,6 +243,14 @@ export default function App() {
         }
         @media (hover: none) or (pointer: coarse) {
           .keyboard-hint { display: none !important; }
+        }
+        .orientation-prompt { display: none !important; }
+        @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+          .orientation-prompt { display: flex !important; }
+        }
+        @keyframes rotateHint {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(90deg); }
         }
         input[type="range"] { background: transparent; }
         input[type="range"]::-webkit-slider-runnable-track {
