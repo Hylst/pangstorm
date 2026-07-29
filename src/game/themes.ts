@@ -73,8 +73,12 @@ const THEMES: LevelTheme[] = [
   { name: 'NÉBULEUSE DU VIDE — Le Big Bang',     bgIndex: 4, ballColors: PH, fallbackTop: '#0a0310', fallbackBottom: '#150818', accent: 'rgba(255,200,0,0.60)', floorGlow: '#ffcc00',   hudColor: '#ffe8c0', description: 'Tout a commencé ici.' },
 ];
 
+const GRADIENT_COUNT = 6; // 6 premiers niveaux sans bitmap
+
 export function getTheme(level: number): LevelTheme {
-  return THEMES[(level - 1) % THEMES.length];
+  if (level <= GRADIENT_COUNT) return THEMES[level - 1];
+  // niv 7+ boucle sur les 30 thèmes bitmap
+  return THEMES[GRADIENT_COUNT + ((level - 1 - GRADIENT_COUNT) % (THEMES.length - GRADIENT_COUNT))];
 }
 
 export const MAX_UNIQUE_LEVELS = THEMES.length;
