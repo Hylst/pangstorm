@@ -555,7 +555,6 @@ function drawPlatforms(ctx: CanvasRenderingContext2D, state: GameState, time: nu
     }
 
     ctx.restore();
-    if (p.flash > 0) p.flash -= 0.05; // décroissance manuelle ici car pas dt
   }
 }
 

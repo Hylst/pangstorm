@@ -12,10 +12,14 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const initialSt = makeInitialState();
   const savedBest = localStorage.getItem('pang_genesis_best');
   if (savedBest) initialSt.bestScore = parseInt(savedBest, 10) || 0;
-  // restaurer les étoiles sauvegardées
+  // restaurer les étoiles et scores sauvegardés
   const savedStars = localStorage.getItem('pang_genesis_stars');
   if (savedStars) {
     try { initialSt.levelStars = JSON.parse(savedStars); } catch {}
+  }
+  const savedScores = localStorage.getItem('pang_genesis_level_scores');
+  if (savedScores) {
+    try { initialSt.levelBestScores = JSON.parse(savedScores); } catch {}
   }
   const stateRef  = useRef<GameState>(initialSt);
   const inputRef  = useRef<InputState>({ left: false, right: false, fire: false, fireHeld: false, mute: false, pause: false, enter: false });
@@ -61,6 +65,8 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     stateRef.current = update(stateRef.current, dt, input);
     if (stateRef.current.bestScore > prevBest) {
       localStorage.setItem('pang_genesis_best', String(stateRef.current.bestScore));
+      localStorage.setItem('pang_genesis_stars', JSON.stringify(stateRef.current.levelStars));
+      localStorage.setItem('pang_genesis_level_scores', JSON.stringify(stateRef.current.levelBestScores));
     }
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current);
