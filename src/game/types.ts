@@ -199,9 +199,11 @@ export interface InputState {
   resetLevel: boolean;
   resetFull: boolean;
   reset:    boolean;
-  touchTargetX: number | null;
   touchFireHeld: boolean;
   tiltGamma: number;
+  joystickActive: boolean;
+  joystickCenter: { x: number; y: number } | null;
+  joystickDeltaX: number;
 }
 
 export const OPTIONS_VERSION = 2;

@@ -4,7 +4,7 @@ import { GameState, InputState, GameOptions, ControlMode, DEFAULT_OPTIONS, OPTIO
 import { makeInitialState } from './initialState';
 import { update, startLevel } from './update';
 import { render } from './renderer';
-import { LOGICAL_WIDTH, LOGICAL_HEIGHT, TOUCH_AUTO_FIRE_INTERVAL } from './constants';
+import { LOGICAL_WIDTH, LOGICAL_HEIGHT, TOUCH_AUTO_FIRE_INTERVAL, JOYSTICK_RADIUS } from './constants';
 import { initSounds, initMusic, stopMusic, toggleMusic, getSfxVolume, getMusicVolume, setSfxVolume, setMusicVolume } from './sounds';
 import { loadAssets, GameAssets } from './assets';
 
@@ -61,8 +61,11 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     left: false, right: false, fire: false, fireHeld: false,
     mute: false, pause: false, enter: false, info: false,
     options: false, quit: false, resetLevel: false, resetFull: false, reset: false,
-    touchTargetX: null, touchFireHeld: false,
+    touchFireHeld: false,
     tiltGamma: 0,
+    joystickActive: false,
+    joystickCenter: null,
+    joystickDeltaX: 0,
   });
   const optionsRef = useRef<GameOptions>(loadOptions());
   const rafRef     = useRef<number>(0);
@@ -168,24 +171,49 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current, optionsRef.current);
 
-    // Feedback visuel joystick (cercle suiveur)
-    if (touchPosRef.current && stateRef.current.phase === 'playing') {
+    // Feedback visuel joystick (base + thumb)
+    const jc = inputRef.current.joystickCenter;
+    if (jc && inputRef.current.joystickActive && stateRef.current.phase === 'playing') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(jc.x, jc.y, JOYSTICK_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(60,140,255,0.10)';
+      ctx.strokeStyle = 'rgba(100,180,255,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.fill();
+      ctx.stroke();
+      const thumb = touchPosRef.current;
+      if (thumb) {
+        ctx.beginPath();
+        ctx.arc(thumb.x, thumb.y, 18, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100,200,255,0.3)';
+        ctx.strokeStyle = 'rgba(100,200,255,0.7)';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(100,200,255,0.5)';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(thumb.x, thumb.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100,200,255,0.7)';
+        ctx.fill();
+      }
+      ctx.restore();
+    } else if (touchPosRef.current && stateRef.current.phase === 'playing') {
+      // Fire zone visuel (cercle simple)
       const p = touchPosRef.current;
       ctx.save();
       ctx.beginPath();
       ctx.arc(p.x, p.y, 18, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(100,200,255,0.3)';
-      ctx.strokeStyle = 'rgba(100,200,255,0.7)';
+      ctx.fillStyle = 'rgba(255,80,80,0.25)';
+      ctx.strokeStyle = 'rgba(255,80,80,0.6)';
       ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(100,200,255,0.5)';
-      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(255,80,80,0.5)';
+      ctx.shadowBlur = 10;
       ctx.fill();
       ctx.stroke();
       ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(100,200,255,0.7)';
-      ctx.fill();
       ctx.restore();
     }
 
@@ -428,7 +456,13 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     }
     // Phase playing
     if (zone === 'move') {
-      inputRef.current.touchTargetX = coords.x;
+      if (!inputRef.current.joystickActive) {
+        inputRef.current.joystickActive = true;
+        inputRef.current.joystickCenter = { x: coords.x, y: coords.y };
+      }
+      const centerX = inputRef.current.joystickCenter?.x ?? coords.x;
+      const dx = coords.x - centerX;
+      inputRef.current.joystickDeltaX = Math.max(-1, Math.min(1, dx / JOYSTICK_RADIUS));
       touchPosRef.current = coords;
     }
     if (zone === 'fire') {
@@ -442,7 +476,11 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const handleTouchZoneEnd = useCallback((zone: 'move' | 'fire', e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     touchPosRef.current = null;
-    if (zone === 'move') inputRef.current.touchTargetX = null;
+    if (zone === 'move') {
+      inputRef.current.joystickActive = false;
+      inputRef.current.joystickCenter = null;
+      inputRef.current.joystickDeltaX = 0;
+    }
     if (zone === 'fire') inputRef.current.touchFireHeld = false;
   }, []);
 

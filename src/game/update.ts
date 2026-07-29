@@ -6,7 +6,7 @@ import {
   HOOK_SPEED, HOOK_WIDTH,
   COMBO_WINDOW,
   BASE_SCORE, MAX_LIVES,
-  TINY_RADIUS, TINY_SPEED,
+  TINY_RADIUS, TINY_SPEED, JOYSTICK_RADIUS,
 } from './constants';
 import { makeBall, makeLevelBalls, makeInitialPlayer, uid, makePlatforms } from './initialState';
 import { spawnParticles, spawnRing } from './particles';
@@ -257,14 +257,14 @@ export function update(state: GameState, dt: number, input: InputState, options?
   if (player.invincible > 0) player.invincible -= dt;
 
   const halfW = PLAYER_WIDTH / 2;
-  // Mouvement tactile : suivi du doigt
-  if (input.touchTargetX !== null) {
-    const deadZone = options?.deadZonePx ?? 0;
+  // Joystick tactile (delta centré)
+  if (input.joystickActive) {
     const sens = options?.touchSensitivity ?? 1.0;
-    const dx = input.touchTargetX - player.x;
-    const maxStep = PLAYER_SPEED * effectiveDt * sens;
-    if (Math.abs(dx) > deadZone) {
-      player.x += Math.sign(dx) * Math.min(Math.abs(dx), maxStep);
+    const dz = (options?.deadZonePx ?? 0) / JOYSTICK_RADIUS;
+    let dx = input.joystickDeltaX;
+    if (Math.abs(dx) > dz) {
+      const scaled = (Math.abs(dx) - dz) / (1 - dz) * Math.sign(dx);
+      player.x += PLAYER_SPEED * effectiveDt * sens * scaled;
     }
   }
   // Tilt (accéléromètre) — mode inclinaison

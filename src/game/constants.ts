@@ -44,3 +44,4 @@ export const TINY_SPEED  = 240;
 
 export const TOUCH_AUTO_FIRE_INTERVAL = 0.25;
 export const TOUCH_DEAD_ZONE_DEFAULT = 10;
+export const JOYSTICK_RADIUS = 50;
