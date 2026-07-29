@@ -311,6 +311,43 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
           } else {
             inputRef.current.fire = true;
           }
+        } else if (phase === 'levelselect') {
+          // Navigation tactile : détecter quelle cellule est tapée
+          const cols = 5, cellW = 120, cellH = 100, gap = 16;
+          const gridW = cols * (cellW + gap) - gap;
+          const startX = (LOGICAL_WIDTH - gridW) / 2;
+          const startY = 140;
+          const perPage = cols * 4;
+          const page = Math.floor((state.level - 1) / perPage);
+          const pageStart = page * perPage;
+          const maxLvl = state.maxLevelReached;
+          const pageEnd = Math.min(maxLvl, (page + 1) * perPage);
+
+          let found = false;
+          for (let i = pageStart; i < pageEnd; i++) {
+            const col = (i - pageStart) % cols;
+            const row = Math.floor((i - pageStart) / cols);
+            const cx = startX + col * (cellW + gap);
+            const cy = startY + row * (cellH + gap);
+            if (hitRect(coords.x, coords.y, cx, cy, cellW, cellH)) {
+              state.level = i + 1;
+              inputRef.current.fire = true;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            // Zone du bas = retour titre
+            if (coords.y > 520) {
+              inputRef.current.enter = true;
+            } else if (coords.x < LOGICAL_WIDTH / 2 && page > 0) {
+              state.level = Math.max(1, state.level - perPage);
+            } else if (coords.x >= LOGICAL_WIDTH / 2 && pageEnd < maxLvl) {
+              state.level = Math.min(maxLvl, state.level + perPage);
+            } else {
+              inputRef.current.fire = true;
+            }
+          }
         } else {
           inputRef.current.fire = true;
           inputRef.current.enter = true;
@@ -364,6 +401,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     if (zone === 'fire') {
       inputRef.current.fire = true;
       inputRef.current.touchFireHeld = true;
+      (navigator as any).vibrate?.(8);
     }
   }, [screenToCanvas, canvasRef, initAudio, confirmChoice]);
 
@@ -385,6 +423,42 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const phase = stateRef.current.phase;
+      const k = e.key.toLowerCase();
+
+      // Lettres (layout-independent avec e.key)
+      if (k === 'm') { e.preventDefault(); toggleMute(); return; }
+      if (k === 'p') { e.preventDefault(); inputRef.current.pause = true; return; }
+      if (k === 'i') { e.preventDefault(); inputRef.current.info = true; return; }
+      if (k === 'o') { e.preventDefault(); inputRef.current.options = true; return; }
+      if (k === 'r' && phase === 'title') { e.preventDefault(); inputRef.current.reset = true; return; }
+
+      // Navigation pause clavier
+      if (phase === 'paused' && !stateRef.current.confirmDialog) {
+        if (e.code === 'ArrowUp')   { e.preventDefault(); stateRef.current.pauseCursor = Math.max(0, stateRef.current.pauseCursor - 1); return; }
+        if (e.code === 'ArrowDown') { e.preventDefault(); stateRef.current.pauseCursor = Math.min(4, stateRef.current.pauseCursor + 1); return; }
+        if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') { e.preventDefault(); return; }
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          const btn = PAUSE_BUTTONS[stateRef.current.pauseCursor];
+          if (btn) {
+            switch (btn.action) {
+              case 'resume': inputRef.current.pause = true; break;
+              case 'quit': stateRef.current.confirmDialog = { visible: true, message: 'Retourner au menu principal ?', action: 'quit' }; break;
+              case 'resetLevel': stateRef.current.confirmDialog = { visible: true, message: 'Recommencer le niveau ?', action: 'resetLevel' }; break;
+              case 'resetFull': stateRef.current.confirmDialog = { visible: true, message: 'Tout recommencer (vies aussi) ?', action: 'resetFull' }; break;
+              case 'options': stateRef.current.prevPhase = 'paused'; inputRef.current.options = true; break;
+            }
+          }
+          return;
+        }
+        if (k === 'q') {
+          e.preventDefault();
+          stateRef.current.confirmDialog = { visible: true, message: 'Retourner au menu principal ?', action: 'quit' };
+          return;
+        }
+      }
+
+      // Touches code (layout-independent)
       if (e.code === 'ArrowLeft')  { e.preventDefault(); inputRef.current.left  = true; }
       if (e.code === 'ArrowRight') { e.preventDefault(); inputRef.current.right = true; }
       if (e.code === 'Space')      {
@@ -393,41 +467,15 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
         inputRef.current.fireHeld = true;
         void initAudio();
       }
-      if (e.code === 'KeyM') {
-        e.preventDefault();
-        toggleMute();
-      }
-      if (e.code === 'KeyP') {
-        e.preventDefault();
-        inputRef.current.pause = true;
-      }
       if (e.code === 'Enter') {
         e.preventDefault();
         inputRef.current.enter = true;
       }
-      if (e.code === 'KeyI') {
-        e.preventDefault();
-        inputRef.current.info = true;
-      }
-      if (e.code === 'KeyO') {
-        e.preventDefault();
-        inputRef.current.options = true;
-      }
-      if (e.code === 'KeyR' && phase === 'title') {
-        e.preventDefault();
-        inputRef.current.reset = true;
-      }
-      if (e.code === 'KeyQ' && phase === 'paused' && !stateRef.current.confirmDialog) {
-        e.preventDefault();
-        stateRef.current.confirmDialog = { visible: true, message: 'Retourner au menu principal ?', action: 'quit' };
-      }
-      if (e.code === 'Enter' && stateRef.current.confirmDialog) {
-        e.preventDefault();
-        confirmChoice(true);
-      }
-      if (e.code === 'Escape' && stateRef.current.confirmDialog) {
-        e.preventDefault();
-        stateRef.current.confirmDialog = null;
+
+      // Dialog confirmation
+      if (stateRef.current.confirmDialog) {
+        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); confirmChoice(true); return; }
+        if (e.code === 'Escape') { e.preventDefault(); stateRef.current.confirmDialog = null; return; }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {

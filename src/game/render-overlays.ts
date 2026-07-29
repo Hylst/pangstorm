@@ -166,28 +166,32 @@ export function drawOnboarding(ctx: CanvasRenderingContext2D, state: GameState, 
 
 export function drawPauseButtons(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   const cx = LOGICAL_WIDTH / 2;
-  const isTouch = window.matchMedia('(hover: none) or (pointer: coarse)').matches;
+  const pulse = 0.5 + 0.5 * Math.sin(time * 3);
 
-  for (const btn of state.confirmDialog ? [] : PAUSE_BUTTONS) {
+  for (let i = 0; i < PAUSE_BUTTONS.length; i++) {
+    const btn = PAUSE_BUTTONS[i];
+    if (state.confirmDialog) continue;
     const bx = cx - 130;
     const bw = 260;
-    const hover = false;
-    const alpha = 0.7 + 0.3 * Math.sin(time * 3 + btn.y * 0.1);
+    const selected = state.pauseCursor === i;
 
     ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.fillStyle = hover ? 'rgba(30,60,120,0.7)' : 'rgba(15,25,55,0.6)';
-    ctx.strokeStyle = hover ? '#4488ff' : 'rgba(60,100,200,0.5)';
-    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = selected ? 0.9 : 0.85;
+    ctx.fillStyle = selected ? 'rgba(30,60,120,0.7)' : 'rgba(15,25,55,0.6)';
+    ctx.strokeStyle = selected ? '#4488ff' : 'rgba(60,100,200,0.5)';
+    ctx.lineWidth = selected ? 2 : 1.5;
+    if (selected) {
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur = 8 * pulse;
+    }
     roundRect(ctx, bx, btn.y, bw, btn.h, 8);
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
     ctx.restore();
 
     ctx.textAlign = 'center';
     ctx.font = 'bold 16px "Courier New", monospace';
-    ctx.fillStyle = btn.action === 'quit' ? '#ff6b6b' : '#c0d8ff';
-
     if (btn.action === 'resume') {
       ctx.fillStyle = '#39ff14';
       ctx.shadowColor = '#39ff14';
@@ -196,8 +200,9 @@ export function drawPauseButtons(ctx: CanvasRenderingContext2D, state: GameState
       ctx.fillStyle = '#ff6b6b';
       ctx.shadowColor = '#ff6b6b';
       ctx.shadowBlur = 8;
+    } else {
+      ctx.fillStyle = '#c0d8ff';
     }
-
     ctx.fillText(btn.label, cx, btn.y + 28);
     ctx.shadowBlur = 0;
   }
@@ -286,7 +291,7 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState
     ctx.fillStyle = 'rgba(200,220,255,0.6)';
     ctx.shadowBlur = 0;
     ctx.textAlign = 'center';
-    ctx.fillText('P REPRENDRE  •  Q QUITTER  •  O OPTIONS', cx, LOGICAL_HEIGHT - 30);
+    ctx.fillText('↑↓ NAVIGUER  •  SPACE/ENTRÉE SÉLECTIONNER  •  P REPRENDRE  •  Q QUITTER', cx, LOGICAL_HEIGHT - 30);
   }
 }
 
@@ -568,8 +573,12 @@ export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState,
     ['ESPACE', 'Tirer le grappin (maintenir = charger)'],
     ['P', 'Pause / Reprendre'],
     ['I', 'Écran d\'informations'],
-    ['M', 'Activer / couper le son'],
-    ['ENTRÉE', 'Menu niveaux / Retour titre'],
+    ['O', 'Options de contrôle'],
+    ['M', 'Activer / couper le son (Muet)'],
+    ['R', 'Réinitialiser la progression (écran titre)'],
+    ['ENTRÉE', 'Menu niveaux / Continuer / Retour titre'],
+    ['Q (pause)', 'Quitter la partie en cours'],
+    ['↑↓ Spc (pause)', 'Naviguer et sélectionner dans le menu pause'],
   ];
   ctx.font = '14px "Courier New", monospace';
   let cyy = 102;
@@ -579,6 +588,28 @@ export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState,
     ctx.fillStyle = 'rgba(200,220,255,0.85)';
     ctx.fillText(desc, 220, cyy);
     cyy += 24;
+  }
+
+  // Tactile
+  ctx.textAlign = 'left';
+  cyy += 4;
+  ctx.font = 'bold 16px "Courier New", monospace';
+  ctx.fillStyle = '#39ff14';
+  ctx.fillText('TACTILE (mobile)', 40, cyy);
+  cyy += 20;
+  const touchCtrls = [
+    ['Zone droite', 'Déplacement (glisser = suit le doigt)'],
+    ['Zone gauche', 'Tir (tap maintenu = auto-feu)'],
+    ['⏸ (haut-gauche)', 'Pause'],
+    ['ℹ (haut-droite)', 'Informations'],
+  ];
+  ctx.font = '13px "Courier New", monospace';
+  for (const [key, desc] of touchCtrls) {
+    ctx.fillStyle = '#ff8800';
+    ctx.fillText(key, 40, cyy);
+    ctx.fillStyle = 'rgba(200,220,255,0.8)';
+    ctx.fillText(desc, 220, cyy);
+    cyy += 20;
   }
 
   // ─── Power-ups (droite) ───

@@ -57,6 +57,14 @@ export default function App() {
     };
   }, [optionsRef]);
 
+  const btnStyle: React.CSSProperties = {
+    background: 'rgba(80,120,255,0.22)', border: '2px solid rgba(100,160,255,0.45)',
+    boxShadow: '0 0 18px rgba(80,120,255,0.3)', borderRadius: '50%',
+    width: 96, height: 96, color: '#cceeff', fontSize: 20, fontWeight: 'bold',
+    cursor: 'pointer', touchAction: 'none', userSelect: 'none',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  };
+
   return (
     <div
       style={{
@@ -155,51 +163,46 @@ export default function App() {
           }}
         />
 
-        {/* Zones tactiles transparentes — cachées sur desktop */}
-        <div className="touch-overlay">
-          {/* Zone gauche : fire */}
-          <div
-            style={getZoneStyle('left')}
-            onPointerDown={(e) => handleTouchZone('fire', e)}
-            onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
-            onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
-            onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
-          />
-          {/* Zone droite : déplacement (joystick) */}
-          <div
-            style={getZoneStyle('right')}
-            onPointerDown={(e) => handleTouchZone('move', e)}
-            onPointerMove={(e) => handleTouchZone('move', e)}
-            onPointerUp={(e) => handleTouchZoneEnd('move', e)}
-            onPointerLeave={(e) => handleTouchZoneEnd('move', e)}
-            onPointerCancel={(e) => handleTouchZoneEnd('move', e)}
-          />
-        </div>
+        {/* Zones tactiles — cachées en classicMode ou desktop */}
+        {!isDesktop && !optionsRef.current.classicMode && (
+          <div className="touch-overlay">
+            <div
+              style={getZoneStyle('left')}
+              onPointerDown={(e) => handleTouchZone('fire', e)}
+              onPointerUp={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
+              onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
+            />
+            <div
+              style={getZoneStyle('right')}
+              onPointerDown={(e) => handleTouchZone('move', e)}
+              onPointerMove={(e) => handleTouchZone('move', e)}
+              onPointerUp={(e) => handleTouchZoneEnd('move', e)}
+              onPointerLeave={(e) => handleTouchZoneEnd('move', e)}
+              onPointerCancel={(e) => handleTouchZoneEnd('move', e)}
+            />
+            {/* Indicateurs visuels */}
+            <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', width: 64, height: 64, borderRadius: '50%', border: '2px solid rgba(255,100,100,0.4)', background: 'radial-gradient(circle, rgba(255,60,60,0.25), transparent 70%)', zIndex: 11, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', width: 80, height: 80, borderRadius: '50%', border: '2px solid rgba(100,160,255,0.4)', background: 'radial-gradient(circle, rgba(60,120,255,0.25), transparent 70%)', zIndex: 11, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: 56, right: '25%', transform: 'translateX(50%)', width: 16, height: 16, borderRadius: '50%', background: 'rgba(180,220,255,0.5)', zIndex: 11, pointerEvents: 'none' }} />
+          </div>
+        )}
+
+        {/* Mode classique : boutons du bas */}
+        {!isDesktop && optionsRef.current.classicMode && (
+          <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', padding: '0 20px', zIndex: 11 }}>
+            <button style={btnStyle} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('move', e); }} onPointerUp={(e) => handleTouchZoneEnd('move', e)} onPointerLeave={(e) => handleTouchZoneEnd('move', e)}>◀</button>
+            <button style={{ ...btnStyle, width: 112, height: 112, fontSize: 24 }} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('fire', e); }} onPointerLeave={(e) => handleTouchZoneEnd('fire', e)} onPointerUp={(e) => handleTouchZoneEnd('fire', e)}>🔥</button>
+            <button style={btnStyle} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('move', e); }} onPointerUp={(e) => handleTouchZoneEnd('move', e)} onPointerLeave={(e) => handleTouchZoneEnd('move', e)}>▶</button>
+          </div>
+        )}
 
         {/* Boutons coin pause/info (tactile seulement) */}
         <div className="touch-corner-btns" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, pointerEvents: 'none' }}>
-          <button
-            className="touch-corner-btn"
-            onPointerDown={handleTouchPause}
-            style={{
-              position: 'absolute', top: 4, left: 4,
-              width: 36, height: 36, borderRadius: 8,
-              background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)',
-              color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >⏸</button>
-          <button
-            className="touch-corner-btn"
-            onPointerDown={handleTouchInfo}
-            style={{
-              position: 'absolute', top: 4, right: 4,
-              width: 36, height: 36, borderRadius: 8,
-              background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)',
-              color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >ℹ</button>
+          <button className="touch-corner-btn" onPointerDown={handleTouchPause}
+            style={{ position: 'absolute', top: 4, left: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏸</button>
+          <button className="touch-corner-btn" onPointerDown={handleTouchInfo}
+            style={{ position: 'absolute', top: 4, right: 4, width: 36, height: 36, borderRadius: 8, background: 'rgba(40,60,120,0.5)', border: '1px solid rgba(80,120,200,0.5)', color: '#aaccff', fontSize: 16, cursor: 'pointer', pointerEvents: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ℹ</button>
         </div>
       </div>
 

@@ -140,6 +140,7 @@ export interface GameState {
   levelMaxCombo: number;
   confirmDialog: ConfirmDialog | null;
   optionsCursor: number;
+  pauseCursor: number;
 }
 
 export interface Ambient {

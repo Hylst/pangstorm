@@ -130,7 +130,7 @@ export function update(state: GameState, dt: number, input: InputState, options?
 
   // pause
   if (input.pause && (s.phase === 'playing' || s.phase === 'paused')) {
-    if (s.phase === 'playing') { s.prevPhase = s.phase; s.phase = 'paused'; }
+    if (s.phase === 'playing') { s.prevPhase = s.phase; s.phase = 'paused'; s.pauseCursor = 0; }
     else { if (!s.confirmDialog) s.phase = s.prevPhase as any; }
     input.pause = false;
   }
@@ -265,10 +265,10 @@ export function update(state: GameState, dt: number, input: InputState, options?
     if (Math.abs(dx) > deadZone) {
       player.x += Math.sign(dx) * Math.min(Math.abs(dx), maxStep);
     }
-  } else {
-    if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
-    if (input.right) player.x += PLAYER_SPEED * effectiveDt;
   }
+  // Clavier toujours actif (cumulatif avec tactile si les deux sont utilisés)
+  if (input.left)  player.x -= PLAYER_SPEED * effectiveDt;
+  if (input.right) player.x += PLAYER_SPEED * effectiveDt;
   player.x = clamp(player.x, halfW, LOGICAL_WIDTH - halfW);
   player.y = FLOOR_Y - PLAYER_HEIGHT / 2 - PLAYER_Y_OFFSET;
   player.squash = player.squash + (1 - player.squash) * Math.min(dt * 8, 1);

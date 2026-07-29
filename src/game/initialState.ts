@@ -159,5 +159,6 @@ export function makeInitialState(): GameState {
     levelMaxCombo: 0,
     confirmDialog: null,
     optionsCursor: 0,
+    pauseCursor: 0,
   };
 }
