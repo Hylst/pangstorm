@@ -657,26 +657,25 @@ export function drawInfoOverlay(ctx: CanvasRenderingContext2D, state: GameState,
 
   // ─── Astuces (bas) ───
   ctx.textAlign = 'center';
-  cyy = 340;
-  ctx.font = 'bold 16px "Courier New", monospace';
+  cyy = 460;
+  ctx.font = 'bold 14px "Courier New", monospace';
   ctx.fillStyle = '#39ff14';
   ctx.fillText('SYSTÈME DE SCORE', cx, cyy);
 
   const tips = [
-    'COMBO : enchaînez les éclatements sans attendre (×multiplicateur)',
-    'HAUTEUR : les balles près du plafond rapportent jusqu\'à 1,5×',
-    'VÉLOCITÉ : les balles rapides rapportent jusqu\'à 1,3×',
-    'PRÉCISION : bonus de fin de niveau basé sur % de tirs réussis',
-    'TEMPS : terminez rapidement pour un bonus vitesse ×niveau',
-    'ÉTOILES 1-5★ : dégâts + précision + vitesse + combo max',
-    'PLATEFORMES : les plateformes peuvent droper bonus ou malus',
+    'COMBO : ×multiplicateur en enchaînant les éclatements',
+    'HAUTEUR : balles près du plafond → jusqu\'à 1,5×',
+    'VÉLOCITÉ : balles rapides → jusqu\'à 1,3×',
+    'PRÉCISION : bonus fin de niveau basé sur % de tirs',
+    'TEMPS : terminer vite → bonus vitesse',
+    'ÉTOILES 1-5★ : dégâts + précision + vitesse + combo',
   ];
-  cyy += 24;
+  cyy += 22;
+  ctx.font = '12px "Courier New", monospace';
+  ctx.fillStyle = 'rgba(200,220,255,0.75)';
   for (const tip of tips) {
-    ctx.font = '13px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(200,220,255,0.8)';
-    ctx.fillText(`• ${tip}`, cx, cyy);
-    cyy += 20;
+    ctx.fillText(tip, cx, cyy);
+    cyy += 16;
   }
 
   ctx.font = '16px "Courier New", monospace';
