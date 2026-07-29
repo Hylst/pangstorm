@@ -62,8 +62,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     if (stateRef.current.bestScore > prevBest) {
       localStorage.setItem('pang_genesis_best', String(stateRef.current.bestScore));
     }
-    // sauvegarder les étoiles
-    localStorage.setItem('pang_genesis_stars', JSON.stringify(stateRef.current.levelStars));
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current);
 

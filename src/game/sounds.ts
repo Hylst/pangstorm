@@ -17,7 +17,7 @@ export function getSfxVolume()   { return _sfxVol; }
 export function getMusicVolume() { return _musicVol; }
 export function setSfxVolume(v: number) {
   _sfxVol = Math.max(0, Math.min(1, v));
-  Object.values(soundBank).forEach(h => h.volume(_sfxVol));
+  applySfxVol();
 }
 export function setMusicVolume(v: number) {
   _musicVol = Math.max(0, Math.min(1, v));
@@ -148,14 +148,18 @@ function toWav(buffer: AudioBuffer): ArrayBuffer {
   return out;
 }
 
-const soundBank: Record<string, Howl> = {};
+const soundBank: Record<string, { h: Howl; baseVol: number }> = {};
 const musicTracks: Howl[] = [];
 let currentTrack = -1;
 let _stopTimeout: ReturnType<typeof setTimeout> | null = null;
 
+function applySfxVol() {
+  Object.values(soundBank).forEach(s => s.h.volume(s.baseVol * _sfxVol));
+}
+
 function ensureSound(name: string, url: string, vol = 0.5) {
   if (!soundBank[name]) {
-    soundBank[name] = new Howl({ src: [url], format: ['wav'], volume: vol * _sfxVol });
+    soundBank[name] = { h: new Howl({ src: [url], format: ['wav'], volume: vol * _sfxVol }), baseVol: vol };
   }
 }
 
@@ -178,8 +182,8 @@ export async function initSounds() {
 }
 
 export function playSfx(name: keyof typeof soundBank) {
-  const howl = soundBank[name];
-  if (howl) howl.play();
+  const entry = soundBank[name];
+  if (entry) entry.h.play();
 }
 
 interface TrackSpec {

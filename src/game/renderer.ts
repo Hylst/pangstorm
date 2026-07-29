@@ -447,7 +447,7 @@ function drawMilestones(ctx: CanvasRenderingContext2D, state: GameState) {
     const bw = 320;
     const bh = 64;
 
-    ctx.fillStyle = 'rgba(10,12,28,0.92)';
+    ctx.fillStyle = 'rgba(10,12,28,0.40)';
     ctx.strokeStyle = m.color;
     ctx.lineWidth = 2;
     ctx.shadowColor = m.color;
