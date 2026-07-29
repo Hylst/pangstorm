@@ -684,26 +684,23 @@ function drawLevelSelect(ctx: CanvasRenderingContext2D, state: GameState, time: 
     const row = Math.floor(i / cols);
     const x = startX + col * (cellW + gap);
     const y = startY + row * (cellH + gap);
+    const selected = lvl === state.level;
 
     const starData = state.levelStars.find(ls => ls.level === lvl);
     const stars = starData?.stars ?? 0;
 
-    // fond du bouton
-    const hover = false; // pas de hover sur canvas
-    ctx.fillStyle = stars > 0 ? 'rgba(30,50,100,0.6)' : 'rgba(20,25,50,0.5)';
-    ctx.strokeStyle = stars > 0 ? 'rgba(80,160,255,0.5)' : 'rgba(60,60,80,0.3)';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = selected ? 'rgba(40,70,140,0.7)' : (stars > 0 ? 'rgba(30,50,100,0.6)' : 'rgba(20,25,50,0.5)');
+    ctx.strokeStyle = selected ? 'rgba(100,200,255,0.8)' : (stars > 0 ? 'rgba(80,160,255,0.5)' : 'rgba(60,60,80,0.3)');
+    ctx.lineWidth = selected ? 3 : 1.5;
     roundRect(ctx, x, y, cellW, cellH, 10);
     ctx.fill();
     ctx.stroke();
 
-    // numéro du niveau
-    ctx.fillStyle = stars > 0 ? '#c0d8ff' : '#555';
+    ctx.fillStyle = selected ? '#ffffff' : (stars > 0 ? '#c0d8ff' : '#555');
     ctx.font = 'bold 28px "Courier New", monospace';
     ctx.textAlign = 'center';
     ctx.fillText(`${lvl}`, x + cellW / 2, y + 38);
 
-    // étoiles
     if (stars > 0) {
       const starStr = '★'.repeat(stars) + '☆'.repeat(3 - stars);
       ctx.font = '14px sans-serif';
@@ -712,9 +709,10 @@ function drawLevelSelect(ctx: CanvasRenderingContext2D, state: GameState, time: 
     }
   }
 
-  ctx.font = '18px "Courier New", monospace';
+  ctx.font = '16px "Courier New", monospace';
   ctx.fillStyle = `rgba(200,220,255,${0.5 + 0.5 * Math.sin(time * 3)})`;
-  ctx.fillText('ESPACE POUR REVENIR', cx, LOGICAL_HEIGHT - 40);
+  ctx.shadowBlur = 0;
+  ctx.fillText('← → CHOISIR   •   ESPACE JOUER   •   ENTRÉE RETOUR', cx, LOGICAL_HEIGHT - 40);
 }
 
 function drawStarsSummary(ctx: CanvasRenderingContext2D, cx: number, cy: number, stars: number) {

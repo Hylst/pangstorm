@@ -1,5 +1,5 @@
 // power-ups : apprennent à connaître le joueur progressivement
-import { Player, GameState, FlashParticle } from './types';
+import { Player, GameState } from './types';
 import { uid } from './initialState';
 import { LOGICAL_WIDTH, FLOOR_Y, CEILING_Y, PLAYER_WIDTH } from './constants';
 import { playSfx } from './sounds';
@@ -186,7 +186,7 @@ function applyPowerUp(state: GameState, type: PowerUpType, effects: ActiveEffect
       state.ballsPending = [];
       floater('BOMBE !', '#ff4400');
       triggerShake(state, 12, 0.6);
-      playSfx('levelup');
+      playSfx('bomb');
       break;
   }
 }

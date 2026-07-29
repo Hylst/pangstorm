@@ -116,8 +116,15 @@ export function update(
 
   // ── level select ──
   if (s.phase === 'levelselect') {
+    if (input.left)  s.level = Math.max(1, s.level - 1);
+    if (input.right) s.level = Math.min(s.maxLevelReached, s.level + 1);
+    if (input.fire) {
+      s.phase = 'playing';
+      s.player = makeInitialPlayer();
+      startLevel(s, s.level);
+      playSfx('start');
+    }
     if (input.enter) {
-      const level = 1; // juste pour sortir du level select
       s.phase = 'title';
       input.enter = false;
     }
@@ -131,6 +138,10 @@ export function update(
   if (s.phase === 'title') {
     s.titleTimer += dt;
     updateAmbient(s, dt, '#4488ff');
+    if (input.enter && s.maxLevelReached > 1) {
+      s.phase = 'levelselect';
+      input.enter = false;
+    }
     if (input.fire) {
       s.player = makeInitialPlayer();
       if (localStorage.getItem('pang_genesis_played')) {
