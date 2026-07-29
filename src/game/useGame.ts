@@ -528,6 +528,20 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
         }
       }
 
+      // ─── Dialog confirmation — intercepte AVANT les handlers génériques ───
+      if (stateRef.current.confirmDialog) {
+        if (e.code === 'Enter' || e.code === 'Space' || e.code === 'ArrowRight') {
+          e.preventDefault(); confirmChoice(true); return;
+        }
+        if (e.code === 'ArrowLeft') {
+          e.preventDefault(); confirmChoice(false); return;
+        }
+        if (e.code === 'Escape') {
+          e.preventDefault(); stateRef.current.confirmDialog = null; return;
+        }
+        return; // bloquer toute autre touche tant que le dialog est ouvert
+      }
+
       // Touches code (layout-independent)
       if (e.code === 'ArrowLeft')  { e.preventDefault(); inputRef.current.left  = true; }
       if (e.code === 'ArrowRight') { e.preventDefault(); inputRef.current.right = true; }
@@ -540,12 +554,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       if (e.code === 'Enter') {
         e.preventDefault();
         inputRef.current.enter = true;
-      }
-
-      // Dialog confirmation
-      if (stateRef.current.confirmDialog) {
-        if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); confirmChoice(true); return; }
-        if (e.code === 'Escape') { e.preventDefault(); stateRef.current.confirmDialog = null; return; }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
