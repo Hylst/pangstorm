@@ -44,7 +44,7 @@ async function requestFullscreenAndLock() {
   } catch {}
 }
 
-export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
+export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>, overlayRef?: React.RefObject<HTMLDivElement | null>) {
   const initialSt = makeInitialState();
   const savedBest = localStorage.getItem('pang_genesis_best');
   if (savedBest) initialSt.bestScore = parseInt(savedBest, 10) || 0;
@@ -93,11 +93,26 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     const scale = Math.min(pw / LOGICAL_WIDTH, ph / LOGICAL_HEIGHT);
     const cw = Math.round(LOGICAL_WIDTH  * scale);
     const ch = Math.round(LOGICAL_HEIGHT * scale);
+    const left = (pw - cw) / 2;
+    const top  = (ph - ch) / 2;
     canvas.style.width  = `${cw}px`;
     canvas.style.height = `${ch}px`;
-    canvas.style.left   = `${(pw - cw) / 2}px`;
-    canvas.style.top    = `${(ph - ch) / 2}px`;
-  }, [canvasRef]);
+    canvas.style.left   = `${left}px`;
+    canvas.style.top    = `${top}px`;
+
+    // Les contrôles tactiles décoratifs (hints Feu/Dir) doivent rester alignés
+    // sur le rectangle réellement visible du canvas, pas sur le wrapper : en
+    // letterbox (aspect ratio de l'écran ≠ 4:3), le wrapper déborde largement
+    // des deux côtés et un simple pourcentage/offset fixe tomberait dans la
+    // bande noire au lieu de rester proche du bord visible du jeu.
+    const overlay = overlayRef?.current;
+    if (overlay) {
+      overlay.style.width  = `${cw}px`;
+      overlay.style.height = `${ch}px`;
+      overlay.style.left   = `${left}px`;
+      overlay.style.top    = `${top}px`;
+    }
+  }, [canvasRef, overlayRef]);
 
   const saveProgress = useCallback((state: GameState) => {
     localStorage.setItem('pang_genesis_best', String(state.bestScore));
@@ -748,5 +763,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     stateRef,
     requestTiltPermission, tiltEnabled,
     phaseVersion,
+    fitCanvas,
   };
 }

@@ -24,6 +24,7 @@ function VolumeSlider({ label, value, onChange }: { label: string; value: number
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [hasTouch, setHasTouch] = useState(false);
   const [hasKeyboard, setHasKeyboard] = useState(false);
   // Masque le hint statique (Feu/Dir) pendant qu'un doigt est réellement posé sur la
@@ -54,8 +55,28 @@ export default function App() {
     optionsRef, updateOptions, toggleFullscreen,
     handleTouchPause, handleTouchInfo,
     stateRef, requestTiltPermission, tiltEnabled,
-    confirmChoice, phaseVersion,
-  } = useGame(canvasRef);
+    confirmChoice, phaseVersion, fitCanvas,
+  } = useGame(canvasRef, overlayRef);
+
+  // Callback ref : le wrapper des hints tactiles (re)monte à chaque bascule
+  // overlay/menu ou changement de mode de contrôle — il faut le repositionner
+  // immédiatement sur le rectangle du canvas, sans attendre un resize.
+  const setOverlayRef = useCallback((node: HTMLDivElement | null) => {
+    overlayRef.current = node;
+    if (node) fitCanvas();
+  }, [fitCanvas]);
+
+  // Un doigt peut rester posé sur la zone tir/déplacement pendant qu'un autre
+  // ouvre la pause : la zone tactile se démonte alors sans jamais recevoir de
+  // pointerup, ce qui laisserait le hint Feu/Dir masqué en permanence. On force
+  // sa réapparition à chaque entrée en pause/options.
+  useEffect(() => {
+    const phase = stateRef.current.phase;
+    if (phase === 'paused' || phase === 'options') {
+      setFireActive(false);
+      setMoveActive(false);
+    }
+  }, [phaseVersion, stateRef]);
 
   const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
     const opts = optionsRef.current;
@@ -223,11 +244,15 @@ export default function App() {
               onPointerLeave={(e) => { setMoveActive(false); handleTouchZoneEnd('move', e); }}
               onPointerCancel={(e) => { setMoveActive(false); handleTouchZoneEnd('move', e); }}
             />
-            {fireIndicator}
-            <div style={{ position: 'absolute', bottom: 16, right: 20, zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: moveActive ? 0 : 1, transition: 'opacity 120ms ease' }}>
-              <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,200,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Dir</span>
-              <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,180,255,0.5)', background: 'radial-gradient(circle, rgba(60,140,255,0.35), transparent 70%)' }} />
-              <div style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(180,220,255,0.6)', boxShadow: '0 0 8px rgba(100,180,255,0.5)' }} />
+            {/* Aligné sur le rectangle réel du canvas (fitCanvas), pas sur le wrapper
+                letterboxé, pour que "proche du bord" reste vrai sur tout ratio d'écran. */}
+            <div ref={setOverlayRef} style={{ position: 'absolute', zIndex: 11, pointerEvents: 'none' }}>
+              {fireIndicator}
+              <div style={{ position: 'absolute', bottom: 16, right: 20, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: moveActive ? 0 : 1, transition: 'opacity 120ms ease' }}>
+                <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,200,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Dir</span>
+                <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,180,255,0.5)', background: 'radial-gradient(circle, rgba(60,140,255,0.35), transparent 70%)' }} />
+                <div style={{ position: 'absolute', top: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(180,220,255,0.6)', boxShadow: '0 0 8px rgba(100,180,255,0.5)' }} />
+              </div>
             </div>
           </div>
         )}
@@ -258,7 +283,9 @@ export default function App() {
               onPointerLeave={(e) => handleTouchZoneEnd('fire', e)}
               onPointerCancel={(e) => handleTouchZoneEnd('fire', e)}
             />
-            {fireIndicator}
+            <div ref={setOverlayRef} style={{ position: 'absolute', zIndex: 11, pointerEvents: 'none' }}>
+              {fireIndicator}
+            </div>
             <div style={{ position: 'absolute', bottom: 16, right: '25%', transform: 'translateX(50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               <span style={{ fontFamily: '"Courier New", monospace', fontSize: 9, color: 'rgba(150,255,150,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>Incliner</span>
               <div style={{ width: 88, height: 88, borderRadius: '50%', border: '2px solid rgba(100,255,180,0.5)', background: 'radial-gradient(circle, rgba(60,255,140,0.35), transparent 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: 'rgba(150,255,200,0.7)' }}>↻</div>
