@@ -153,6 +153,10 @@ export function update(state: GameState, dt: number, input: InputState): GameSta
 
   if (s.phase === 'levelup') {
     s.levelTimer -= dt;
+    for (const p of s.flashParticles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 220 * dt; p.life -= dt; }
+    s.flashParticles = s.flashParticles.filter(p => p.life > 0);
+    for (const f of s.floaters) { f.y -= 40 * dt; f.life -= dt; f.scale = 1 + (1 - f.life / f.maxLife) * 0.3; }
+    s.floaters = s.floaters.filter(f => f.life > 0);
     if (s.levelTimer <= 0) {
       const stars = getStars(s.levelHits);
       const existing = s.levelStars.findIndex(ls => ls.level === s.level);

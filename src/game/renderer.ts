@@ -44,19 +44,6 @@ export function render(
     drawHook(ctx, hook);
   }
 
-  for (const p of state.flashParticles) {
-    const alpha = p.life / p.maxLife;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
-    ctx.fillStyle = p.color;
-    ctx.shadowColor = p.color;
-    ctx.shadowBlur = 10;
-    ctx.fill();
-    ctx.restore();
-  }
-
   if (state.phase === 'playing' || state.phase === 'dead' || state.phase === 'onboarding' || state.phase === 'paused') {
     drawPlayer(ctx, state.player.x, state.player.y, state.player.squash, state.player.charge, state.player.invincible, state.effects.shieldTimer > 0, time);
   }
@@ -78,4 +65,17 @@ export function render(
   drawOverlay(ctx, state, time);
   drawPauseOverlay(ctx, state, time);
   drawLevelSelect(ctx, state, time);
+
+  for (const p of state.flashParticles) {
+    const alpha = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.restore();
+  }
 }
