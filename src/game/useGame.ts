@@ -117,35 +117,12 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     inputRef.current.resetFull = false;
     inputRef.current.reset = false;
 
-    // Navigation clavier dans l'écran options (on a accès à optionsRef)
     const state = stateRef.current;
+
+    // Fermeture options via boutons pause/info (touch ou clavier)
     if (state.phase === 'options') {
-      if (input.left)  state.optionsCursor = Math.max(0, state.optionsCursor - 1);
-      if (input.right) state.optionsCursor = Math.min(3, state.optionsCursor + 1);
-      if (input.fire || input.enter) {
-        const opts = optionsRef.current;
-        switch (state.optionsCursor) {
-          case 0: updateOptions({ invertZones: !opts.invertZones }); break;
-          case 1: {
-            const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
-            const ci = ratios.indexOf(opts.zoneSplitRatio);
-            updateOptions({ zoneSplitRatio: ratios[(ci + 1) % ratios.length] });
-            break;
-          }
-          case 2: {
-            const zones = [0, 10, 20, 30, 40, 50];
-            const zi = zones.indexOf(opts.deadZonePx);
-            updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
-            break;
-          }
-          case 3: updateOptions({ classicMode: !opts.classicMode }); break;
-        }
-        input.fire = false; input.enter = false;
-      }
-      if (input.pause || input.info) {
-        state.phase = state.prevPhase;
-        input.pause = false; input.info = false;
-      }
+      if (input.pause) { state.phase = state.prevPhase; input.pause = false; }
+      if (input.info)  { state.phase = state.prevPhase; input.info = false; }
     }
 
     // Reset progression depuis l'écran titre
@@ -377,20 +354,26 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       return;
     }
     if (phase === 'options') {
-      // Taper sur une ligne d'option la toggle
+      // Détection de ligne par formule (pas de magic numbers)
       const opts = optionsRef.current;
-      if (coords.y >= 78 && coords.y < 105) {
-        updateOptions({ invertZones: !opts.invertZones });
-      } else if (coords.y >= 106 && coords.y < 133) {
-        const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
-        const ci = ratios.indexOf(opts.zoneSplitRatio);
-        updateOptions({ zoneSplitRatio: ratios[(ci + 1) % ratios.length] });
-      } else if (coords.y >= 134 && coords.y < 161) {
-        const zones = [0, 10, 20, 30, 40, 50];
-        const zi = zones.indexOf(opts.deadZonePx);
-        updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
-      } else if (coords.y >= 162 && coords.y < 189) {
-        updateOptions({ classicMode: !opts.classicMode });
+      const row = Math.floor((coords.y - 75) / 30);
+      if (row >= 0 && row < 4) {
+        switch (row) {
+          case 0: updateOptions({ invertZones: !opts.invertZones }); break;
+          case 1: {
+            const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
+            const ci = ratios.indexOf(opts.zoneSplitRatio);
+            updateOptions({ zoneSplitRatio: ratios[(ci + 1) % ratios.length] });
+            break;
+          }
+          case 2: {
+            const zones = [0, 10, 20, 30, 40, 50];
+            const zi = zones.indexOf(opts.deadZonePx);
+            updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
+            break;
+          }
+          case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+        }
       }
       return;
     }
@@ -421,6 +404,30 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   }, []);
 
   useEffect(() => {
+    // Cycle la valeur d'une option (direction : -1 ou +1)
+    const cycleOption = (dir: number) => {
+      const opts = optionsRef.current;
+      const cursor = stateRef.current.optionsCursor;
+      switch (cursor) {
+        case 0: updateOptions({ invertZones: !opts.invertZones }); break;
+        case 1: {
+          const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
+          const ci = ratios.indexOf(opts.zoneSplitRatio);
+          const next = ((ci + dir) % ratios.length + ratios.length) % ratios.length;
+          updateOptions({ zoneSplitRatio: ratios[next] });
+          break;
+        }
+        case 2: {
+          const zones = [0, 10, 20, 30, 40, 50];
+          const zi = zones.indexOf(opts.deadZonePx);
+          const next = ((zi + dir) % zones.length + zones.length) % zones.length;
+          updateOptions({ deadZonePx: zones[next] });
+          break;
+        }
+        case 3: updateOptions({ classicMode: !opts.classicMode }); break;
+      }
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
       const phase = stateRef.current.phase;
       const k = e.key.toLowerCase();
@@ -431,6 +438,22 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       if (k === 'i') { e.preventDefault(); inputRef.current.info = true; return; }
       if (k === 'o') { e.preventDefault(); inputRef.current.options = true; return; }
       if (k === 'r' && phase === 'title') { e.preventDefault(); inputRef.current.reset = true; return; }
+
+      // Navigation clavier dans l'écran options
+      if (phase === 'options') {
+        if (e.code === 'ArrowUp')   { e.preventDefault(); stateRef.current.optionsCursor = Math.max(0, stateRef.current.optionsCursor - 1); return; }
+        if (e.code === 'ArrowDown') { e.preventDefault(); stateRef.current.optionsCursor = Math.min(3, stateRef.current.optionsCursor + 1); return; }
+        if (e.code === 'ArrowLeft')  { e.preventDefault(); cycleOption(-1); return; }
+        if (e.code === 'ArrowRight') { e.preventDefault(); cycleOption(1); return; }
+        if (e.code === 'Space') { e.preventDefault(); cycleOption(1); return; }
+        // Fermer
+        if (e.code === 'Enter' || e.code === 'Escape' || k === 'o' || k === 'i' || k === 'p') {
+          e.preventDefault();
+          stateRef.current.phase = stateRef.current.prevPhase;
+          return;
+        }
+        return; // bloquer les handlers génériques
+      }
 
       // Navigation pause clavier
       if (phase === 'paused' && !stateRef.current.confirmDialog) {
@@ -505,7 +528,7 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
       window.removeEventListener('mousedown', onMouseDown);
       window.removeEventListener('mouseup',   onMouseUp);
     };
-  }, [initAudio, toggleMute, confirmChoice]);
+    }, [initAudio, toggleMute, confirmChoice, updateOptions]);
 
   useEffect(() => {
     fitCanvas();
