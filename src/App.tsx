@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useGame } from './game/useGame';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './game/constants';
-import { PAUSE_BUTTONS } from './game/types';
+import { PAUSE_BUTTONS, ControlMode, OPTIONS_ROWS_TOP, OPTIONS_ROW_SPACING, OPTIONS_ROW_COUNT, OPTIONS_ROW_W } from './game/types';
 
 function VolumeSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -46,7 +46,7 @@ export default function App() {
     toggleMute, muted,
     sfxVol, musicVol, handleSfxVol, handleMusicVol,
     handleTouchZone, handleTouchZoneEnd,
-    optionsRef, toggleFullscreen,
+    optionsRef, updateOptions, toggleFullscreen,
     handleTouchPause, handleTouchInfo,
     stateRef, requestTiltPermission, tiltEnabled,
     confirmChoice, phaseVersion,
@@ -92,6 +92,9 @@ export default function App() {
   const isOverlay = mode === 'overlay';
   const isClassic = mode === 'classic';
   const isTilt = mode === 'tilt';
+  // Pause/Options ont leur propre surcouche tactile plein écran (z-index 15) :
+  // les commandes de jeu doivent rester cachées et inertes en dessous.
+  const menuOpen = stateRef.current.phase === 'paused' || stateRef.current.phase === 'options';
 
   const fireIndicator = (
     <div style={{ position: 'absolute', bottom: 16, left: '25%', transform: 'translateX(-50%)', zIndex: 11, pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -198,7 +201,7 @@ export default function App() {
         />
 
         {/* Zones overlay (fire left + joystick right) */}
-        {hasTouch && isOverlay && (
+        {hasTouch && isOverlay && !menuOpen && (
           <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               style={getZoneStyle('left')}
@@ -225,7 +228,7 @@ export default function App() {
         )}
 
         {/* Mode classique : boutons du bas */}
-        {hasTouch && isClassic && (
+        {hasTouch && isClassic && !menuOpen && (
           <div style={{ position: 'absolute', bottom: 14, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', padding: '0 20px', zIndex: 11 }}>
             <button style={btnStyle} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('move', e); }} onPointerUp={(e) => handleTouchZoneEnd('move', e)} onPointerLeave={(e) => handleTouchZoneEnd('move', e)}>◀</button>
             <button style={{ ...btnStyle, width: 112, height: 112, fontSize: 24 }} onPointerDown={(e) => { e.preventDefault(); handleTouchZone('fire', e); }} onPointerLeave={(e) => handleTouchZoneEnd('fire', e)} onPointerUp={(e) => handleTouchZoneEnd('fire', e)}>🔥</button>
@@ -234,7 +237,7 @@ export default function App() {
         )}
 
         {/* Mode inclinaison : les deux côtés tirent, l'inclinaison déplace */}
-        {hasTouch && isTilt && (
+        {hasTouch && isTilt && !menuOpen && (
           <div className="touch-overlay" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
             <div
               style={getZoneStyle('left')}
@@ -303,6 +306,60 @@ export default function App() {
                   }
                 }
                 (window as any).__touchDbg = { count: ((window as any).__touchDbg?.count ?? 0) + 1, x: Math.round(cx), y: Math.round(cy), hit: 'miss' };
+              }
+            }}
+            onPointerUp={(e) => { e.preventDefault(); }}
+            onPointerLeave={(e) => { e.preventDefault(); }}
+            onPointerCancel={(e) => { e.preventDefault(); }}
+          />
+        )}
+
+        {/* Surcouche options tactile — même principe que la pause : plein écran,
+            indépendante du mode de contrôle (overlay/classic/tilt). Fermeture via
+            les boutons de coin ⏸/ℹ (cf. useGame: input.pause/info ferment 'options'). */}
+        {hasTouch && stateRef.current.phase === 'options' && (
+          <div
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15, touchAction: 'none', background: 'transparent' }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              const rect = canvasRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              const sx = LOGICAL_WIDTH / rect.width;
+              const sy = LOGICAL_HEIGHT / rect.height;
+              const cx = (e.clientX - rect.left) * sx;
+              const cy = (e.clientY - rect.top) * sy;
+              const mid = LOGICAL_WIDTH / 2;
+              const rx = mid - OPTIONS_ROW_W / 2;
+              const row = Math.floor((cy - (OPTIONS_ROWS_TOP - OPTIONS_ROW_SPACING / 2)) / OPTIONS_ROW_SPACING);
+              if (cx < rx || cx > rx + OPTIONS_ROW_W || row < 0 || row >= OPTIONS_ROW_COUNT) return;
+              const opts = optionsRef.current;
+              switch (row) {
+                case 0: updateOptions({ invertZones: !opts.invertZones }); break;
+                case 1: {
+                  const ratios = [0.3, 0.4, 0.5, 0.6, 0.7];
+                  const ri = ratios.indexOf(opts.zoneSplitRatio);
+                  updateOptions({ zoneSplitRatio: ratios[(ri + 1) % ratios.length] });
+                  break;
+                }
+                case 2: {
+                  const zones = [0, 10, 20, 30, 40, 50];
+                  const zi = zones.indexOf(opts.deadZonePx);
+                  updateOptions({ deadZonePx: zones[(zi + 1) % zones.length] });
+                  break;
+                }
+                case 3: {
+                  const modes: ControlMode[] = ['overlay', 'classic', 'tilt'];
+                  const ci = modes.indexOf(opts.controlMode);
+                  updateOptions({ controlMode: modes[(ci + 1) % modes.length] });
+                  break;
+                }
+                case 4: {
+                  const sens = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+                  const si = sens.indexOf(opts.touchSensitivity);
+                  updateOptions({ touchSensitivity: sens[(si + 1) % sens.length] });
+                  break;
+                }
+                case 5: updateOptions({ chromeLess: !opts.chromeLess }); break;
               }
             }}
             onPointerUp={(e) => { e.preventDefault(); }}

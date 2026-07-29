@@ -243,3 +243,11 @@ export const PAUSE_BUTTONS: PauseButton[] = [
   { id: 'options',     label: '⚙ OPTIONS',             y: 368, h: 36, action: 'options' },
   { id: 'quit',        label: '✕ QUITTER',             y: 414, h: 36, action: 'quit' },
 ];
+
+// Géométrie des lignes de l'écran Options — partagée entre le rendu canvas
+// (render-overlays.ts) et le hit-test tactile (App.tsx) pour rester synchronisée.
+export const OPTIONS_ROWS_TOP = 90;
+export const OPTIONS_ROW_SPACING = 30;
+export const OPTIONS_ROW_COUNT = 6;
+export const OPTIONS_ROW_W = 720;
+export const OPTIONS_ROW_H = 28;

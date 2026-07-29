@@ -1,4 +1,4 @@
-import { GameState, GameOptions, OnboardingStep, ONBOARDING_STEPS, PAUSE_BUTTONS } from './types';
+import { GameState, GameOptions, OnboardingStep, ONBOARDING_STEPS, PAUSE_BUTTONS, OPTIONS_ROWS_TOP, OPTIONS_ROW_SPACING, OPTIONS_ROW_W, OPTIONS_ROW_H } from './types';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './constants';
 import { getTheme, LevelTheme } from './themes';
 import { roundRect } from './render-utils';
@@ -222,7 +222,7 @@ export function drawPauseButtons(ctx: CanvasRenderingContext2D, state: GameState
   }
 }
 
-export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameState, time: number, options?: GameOptions) {
+export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   if (!state.confirmDialog) return;
   const cx = LOGICAL_WIDTH / 2;
   const cy = LOGICAL_HEIGHT / 2;
@@ -265,21 +265,20 @@ export function drawConfirmDialog(ctx: CanvasRenderingContext2D, state: GameStat
   ctx.shadowBlur = 0;
 
   if (window.matchMedia('(any-pointer: coarse)').matches) {
-    const mode = options?.controlMode ?? 'overlay';
-    const hint = mode === 'tilt' ? 'Toucher = OUI (gauche) / NON (droite)' :
-                 mode === 'classic' ? '◀ NON  🔥 OUI  ▶ NON' :
-                 'Toucher gauche = OUI, droite = NON';
+    // La surcouche pause tactile capte tout l'écran (peu importe le mode de contrôle) :
+    // toucher gauche = OUI, droite = NON, dans tous les modes.
+    const hint = 'Toucher gauche = OUI, droite = NON';
     ctx.font = '12px "Courier New", monospace';
     ctx.fillStyle = `rgba(200,220,255,${0.3 + 0.3 * Math.sin(time * 3)})`;
     ctx.fillText(hint, cx, cy + 65);
   }
 }
 
-export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number, options?: GameOptions) {
+export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
   if (state.phase !== 'paused') return;
 
   if (state.confirmDialog) {
-    drawConfirmDialog(ctx, state, time, options);
+    drawConfirmDialog(ctx, state, time);
     return;
   }
 
@@ -721,8 +720,8 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
   }
 
   ctx.textAlign = 'left';
-  let yy = 90;
-  const rw = 360, rh = 28, rx = cx - rw / 2;
+  let yy = OPTIONS_ROWS_TOP;
+  const rw = OPTIONS_ROW_W, rh = OPTIONS_ROW_H, rx = cx - rw / 2;
   const pulse = 0.5 + 0.5 * Math.sin(time * 3);
 
   const modeLabels: Record<string, string> = { overlay: 'ZONES', classic: 'BOUTONS', tilt: 'INCLINAISON' };
@@ -737,7 +736,7 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
 
   for (let i = 0; i < optionRows.length; i++) {
     const row = optionRows[i];
-    const y = yy + i * 30;
+    const y = yy + i * OPTIONS_ROW_SPACING;
     const selected = state.optionsCursor === i;
 
     if (selected) {
@@ -770,13 +769,13 @@ export function drawOptionsOverlay(ctx: CanvasRenderingContext2D, state: GameSta
     ctx.textAlign = 'left';
   }
 
-  yy += optionRows.length * 30 + 20;
+  yy += optionRows.length * OPTIONS_ROW_SPACING + 20;
   ctx.textAlign = 'center';
   ctx.font = '13px "Courier New", monospace';
   ctx.fillStyle = 'rgba(200,220,255,0.45)';
   const isTouch = window.matchMedia('(any-pointer: coarse)').matches;
   const hint = isTouch
-    ? 'TAPER SUR UNE LIGNE POUR TOGGLER  •  O/ENTRÉE FERMER'
+    ? 'TAPER UNE LIGNE = CHANGER  •  ⏸/ℹ FERMER'
     : '↑↓ CURSEUR  •  ←→ TOGGLER  •  ENTRÉE/O FERMER';
   ctx.fillText(hint, cx, yy);
 }
