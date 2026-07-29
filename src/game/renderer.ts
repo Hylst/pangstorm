@@ -551,7 +551,8 @@ function drawPlatforms(ctx: CanvasRenderingContext2D, state: GameState, time: nu
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       ctx.font = '9px "Courier New", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`${p.hp}`, p.x + p.w / 2, p.y + p.h - 2);
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${p.hp}`, p.x + p.w / 2, p.y + p.h / 2);
     }
 
     ctx.restore();
