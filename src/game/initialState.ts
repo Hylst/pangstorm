@@ -22,6 +22,7 @@ export function makeBall(
   tier: number,
   colorIdx: number,
   homing = false,
+  remainingHits = 1,
 ): import('./types').Ball {
   const { color, glowColor } = randomBallColor(tier, colorIdx);
   return {
@@ -36,6 +37,7 @@ export function makeBall(
     rotSpeed: (Math.random() - 0.5) * 4,
     homing,
     trail: [],
+    remainingHits,
   };
 }
 
@@ -55,7 +57,7 @@ export function makeLevelBalls(level: number, playerX: number): import('./types'
       vx = playerX < x ? -Math.abs(vx) : Math.abs(vx);
     }
 
-    balls.push(makeBall(x, y, vx, 0, tier, i, Math.random() < diff.homingChance));
+    balls.push(makeBall(x, y, vx, 0, tier, i, Math.random() < diff.homingChance, diff.ballHealth));
   }
   return balls;
 }
@@ -109,5 +111,7 @@ export function makeInitialState(): GameState {
     levelHits: 0,
     scoreMilestone: 0,
     ambient: [],
+    ballsPending: [],
+    spawnTimer: 0,
   };
 }

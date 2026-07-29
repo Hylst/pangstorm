@@ -137,6 +137,7 @@ function toWav(buffer: AudioBuffer): ArrayBuffer {
 const soundBank: Record<string, Howl> = {};
 const musicTracks: Howl[] = [];
 let currentTrack = -1;
+let _stopTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function ensureSound(name: string, url: string, vol = 0.5) {
   if (!soundBank[name]) {
@@ -288,19 +289,21 @@ export function playMusicForLevel(level: number) {
   const idx = (level - 1) % musicTracks.length;
   if (idx === currentTrack && musicTracks[idx]?.playing()) return;
 
+  if (_stopTimeout) { clearTimeout(_stopTimeout); _stopTimeout = null; }
   musicTracks.forEach((t, i) => {
     if (i === idx) {
       if (!t.playing()) t.play();
       t.fade(0, 0.22, 900);
     } else {
       if (t.playing()) t.fade(0.22, 0, 600);
-      setTimeout(() => t.stop(), 700);
+      _stopTimeout = setTimeout(() => t.stop(), 700);
     }
   });
   currentTrack = idx;
 }
 
 export function stopMusic() {
+  if (_stopTimeout) { clearTimeout(_stopTimeout); _stopTimeout = null; }
   musicTracks.forEach(t => t.stop());
   currentTrack = -1;
 }

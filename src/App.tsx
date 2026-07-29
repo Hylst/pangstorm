@@ -132,21 +132,21 @@ export default function App() {
           label="◀"
           onDown={() => handleTouchLeft(true)}
           onUp={() => handleTouchLeft(false)}
-          className="w-20 h-20"
+          className="w-24 h-24"
         />
 
         <TouchBtn
           label="🔥"
           onDown={() => handleTouchFire()}
           onUp={() => handleTouchFireUp()}
-          className="w-24 h-24"
+          className="w-28 h-28"
         />
 
         <TouchBtn
           label="▶"
           onDown={() => handleTouchRight(true)}
           onUp={() => handleTouchRight(false)}
-          className="w-20 h-20"
+          className="w-24 h-24"
         />
       </div>
 

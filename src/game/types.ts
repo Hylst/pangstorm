@@ -21,6 +21,7 @@ export interface Ball {
   rotSpeed: number;
   homing: boolean;
   trail: { x: number; y: number }[];
+  remainingHits: number; // >1 = multi-hit (niveau 7+)
 }
 
 export interface Hook {
@@ -102,6 +103,8 @@ export interface GameState {
   levelHits:     number;
   scoreMilestone: number;
   ambient:       Ambient[];
+  ballsPending:  Ball[];
+  spawnTimer:    number;
 }
 
 export interface Ambient {

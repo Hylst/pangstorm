@@ -38,13 +38,22 @@ function triggerShake(state: GameState, intensity: number, duration: number) {
 function startLevel(state: GameState, level: number) {
   state.level = level;
   state.difficulty = getDifficulty(level);
-  state.balls = makeLevelBalls(level, state.player.x);
+  const allBalls = makeLevelBalls(level, state.player.x);
   state.hooks = [];
   state.powerUps = [];
   state.ballSpawnPulse = 1;
   state.levelIntro = 2.6;
   state.levelHits = 0;
   state.effects = { multishotTimer: 0, slowMoTimer: 0, shieldTimer: 0, scoreBoostTimer: 0 };
+
+  if (state.difficulty.spawnDelay > 0) {
+    state.ballsPending = allBalls;
+    state.balls = state.ballsPending.splice(0, Math.min(2, state.ballsPending.length));
+    state.spawnTimer = 0;
+  } else {
+    state.balls = allBalls;
+    state.ballsPending = [];
+  }
   playMusicForLevel(level);
 }
 
@@ -162,6 +171,8 @@ export function update(
       s.difficulty = getDifficulty(1);
       s.scoreMilestone = 0;
       s.totalPopped = 0;
+      s.ballsPending = [];
+      s.spawnTimer = 0;
     }
     return s;
   }
@@ -307,9 +318,21 @@ export function update(
       const dx = Math.abs(hook.x - ball.x);
       const inVertical = hook.tipY <= ball.y + ball.radius && hook.baseY >= ball.y - ball.radius;
       if (dx <= ball.radius && inVertical) {
-        ballIdsToRemove.add(ball.id);
         hookIdsToRemove.add(hook.id);
         hook.active = false;
+
+        ball.remainingHits--;
+        if (ball.remainingHits > 0) {
+          // multi-hit : la balle encaisse mais ne meurt pas
+          ball.flash = 1;
+          const kickDir = hook.x < ball.x ? 1 : -1;
+          ball.vx += kickDir * 120;
+          ball.vy = -Math.abs(ball.vy) * 0.8 - 80;
+          playSfx('bounce');
+          break;
+        }
+
+        ballIdsToRemove.add(ball.id);
 
         s.combo += 1;
         s.comboTimer = COMBO_WINDOW;
@@ -368,8 +391,8 @@ export function update(
           const newSpd = ((newTier === 0 ? TINY_SPEED : BALL_SPEEDS[newTier]) * diff.speedMultiplier) + diff.extraHSpeed;
           const lift = Math.abs(ball.vy) * 0.7;
 
-          ballsToAdd.push(makeBall(ball.x - newRadius, ball.y, -Math.abs(newSpd), -lift, newTier, Math.floor(Math.random() * 3)));
-          ballsToAdd.push(makeBall(ball.x + newRadius, ball.y, Math.abs(newSpd), -lift, newTier, Math.floor(Math.random() * 3)));
+          ballsToAdd.push(makeBall(ball.x - newRadius, ball.y, -Math.abs(newSpd), -lift, newTier, Math.floor(Math.random() * 3), false, diff.ballHealth));
+          ballsToAdd.push(makeBall(ball.x + newRadius, ball.y, Math.abs(newSpd), -lift, newTier, Math.floor(Math.random() * 3), false, diff.ballHealth));
         }
         break;
       }
@@ -451,7 +474,18 @@ export function update(
   s.floaters = s.floaters.filter(f => f.life > 0);
 
 
-  if (s.balls.length === 0 && s.phase === 'playing') {
+  // spawn échelonné (niveau 10+) — pop les balles en attente une par une
+  if (s.ballsPending.length > 0 && s.phase === 'playing') {
+    s.spawnTimer -= dt;
+    if (s.spawnTimer <= 0) {
+      const b = s.ballsPending.shift()!;
+      s.balls.push(b);
+      s.spawnTimer = s.difficulty.spawnDelay;
+    }
+  }
+
+
+  if (s.balls.length === 0 && s.ballsPending.length === 0 && s.phase === 'playing') {
     s.phase = 'levelup';
     s.levelTimer = 2.6;
     s.hooks = [];
