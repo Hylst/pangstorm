@@ -303,6 +303,16 @@ export function drawPauseOverlay(ctx: CanvasRenderingContext2D, state: GameState
 
   drawPauseButtons(ctx, state, time);
 
+  // Debug tactile
+  const dbg = (window as any).__touchDbg;
+  if (dbg && dbg.count > 0) {
+    ctx.font = '11px "Courier New", monospace';
+    ctx.fillStyle = '#ffff00';
+    ctx.textAlign = 'left';
+    ctx.shadowBlur = 0;
+    ctx.fillText(`touch #${dbg.count} (${dbg.x},${dbg.y}) hit:${dbg.hit}`, 8, 16);
+  }
+
   const isTouch = window.matchMedia('(any-pointer: coarse)').matches;
   if (!isTouch) {
     ctx.font = '14px "Courier New", monospace';

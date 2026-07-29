@@ -1,6 +1,6 @@
 // hook principal — relie React, le canvas et la boucle de jeu
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { GameState, InputState, GameOptions, ControlMode, DEFAULT_OPTIONS, OPTIONS_VERSION, PAUSE_BUTTONS } from './types';
+import { GameState, InputState, GameOptions, ControlMode, GamePhase, DEFAULT_OPTIONS, OPTIONS_VERSION, PAUSE_BUTTONS } from './types';
 import { makeInitialState } from './initialState';
 import { update, startLevel } from './update';
 import { render } from './renderer';
@@ -81,6 +81,8 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const [musicVol, setMusicVolState] = useState(getMusicVolume());
   const [optionsVersion, setOptionsVersion] = useState(0);
   const [tiltEnabled, setTiltEnabled] = useState(false);
+  const [phaseVersion, setPhaseVersion] = useState(0);
+  const prevPhaseRef = useRef<GamePhase>('title');
 
   const fitCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -167,6 +169,13 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     stateRef.current = update(stateRef.current, dt, input, optionsRef.current);
     if (stateRef.current.bestScore > prevBest) {
       saveProgress(stateRef.current);
+    }
+
+    // Notifier React quand la phase change (pour le menu pause tactile)
+    const currentPhase = stateRef.current.phase;
+    if (currentPhase !== prevPhaseRef.current) {
+      prevPhaseRef.current = currentPhase;
+      setPhaseVersion(v => v + 1);
     }
 
     render(ctx, stateRef.current, timeRef.current, assetsRef.current, optionsRef.current);
@@ -738,5 +747,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
     handleTouchPause, handleTouchInfo,
     stateRef,
     requestTiltPermission, tiltEnabled,
+    phaseVersion,
   };
 }

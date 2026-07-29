@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useGame } from './game/useGame';
 import { LOGICAL_WIDTH, LOGICAL_HEIGHT } from './game/constants';
+import { PAUSE_BUTTONS } from './game/types';
 
 function VolumeSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -48,6 +49,7 @@ export default function App() {
     optionsRef, toggleFullscreen,
     handleTouchPause, handleTouchInfo,
     stateRef, requestTiltPermission, tiltEnabled,
+    phaseVersion,
   } = useGame(canvasRef);
 
   const getZoneStyle = useCallback((side: 'left' | 'right'): React.CSSProperties => {
@@ -262,6 +264,51 @@ export default function App() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Surcouche pause tactile — z-index au-dessus des zones, en dessous de orientation-prompt */}
+        {hasTouch && stateRef.current.phase === 'paused' && (
+          <div
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 15, touchAction: 'none', background: 'transparent' }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              const rect = canvasRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              const sx = LOGICAL_WIDTH / rect.width;
+              const sy = LOGICAL_HEIGHT / rect.height;
+              const cx = (e.clientX - rect.left) * sx;
+              const cy = (e.clientY - rect.top) * sy;
+              const phase = stateRef.current.phase;
+              const confirm = stateRef.current.confirmDialog;
+              (window as any).__touchDbg = { count: (window as any).__touchDbg?.count ?? 0, x: Math.round(cx), y: Math.round(cy), hit: 'start' };
+              if (phase === 'paused') {
+                if (confirm) {
+                  (window as any).__touchDbg.hit = 'dismiss-confirm';
+                  stateRef.current.confirmDialog = null;
+                  return;
+                }
+                const mid = LOGICAL_WIDTH / 2;
+                for (const btn of PAUSE_BUTTONS) {
+                  const bx = mid - 130;
+                  if (cx >= bx && cx <= bx + 260 && cy >= btn.y && cy <= btn.y + btn.h) {
+                    (window as any).__touchDbg = { count: ((window as any).__touchDbg?.count ?? 0) + 1, x: Math.round(cx), y: Math.round(cy), hit: btn.action };
+                    switch (btn.action) {
+                      case 'resume': stateRef.current.phase = stateRef.current.prevPhase; break;
+                      case 'quit': stateRef.current.confirmDialog = { visible: true, message: 'Retourner au menu principal ?', action: 'quit' }; break;
+                      case 'resetLevel': stateRef.current.confirmDialog = { visible: true, message: 'Recommencer le niveau ?', action: 'resetLevel' }; break;
+                      case 'resetFull': stateRef.current.confirmDialog = { visible: true, message: 'Tout recommencer (vies aussi) ?', action: 'resetFull' }; break;
+                      case 'options': stateRef.current.prevPhase = 'paused'; stateRef.current.phase = 'options'; break;
+                    }
+                    return;
+                  }
+                }
+                (window as any).__touchDbg = { count: ((window as any).__touchDbg?.count ?? 0) + 1, x: Math.round(cx), y: Math.round(cy), hit: 'miss' };
+              }
+            }}
+            onPointerUp={(e) => { e.preventDefault(); }}
+            onPointerLeave={(e) => { e.preventDefault(); }}
+            onPointerCancel={(e) => { e.preventDefault(); }}
+          />
         )}
 
         {/* Boutons coin pause/info (tactile seulement) */}
