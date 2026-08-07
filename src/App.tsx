@@ -29,8 +29,9 @@ export default function App() {
   const [hasKeyboard, setHasKeyboard] = useState(false);
   // Masque le hint statique (Feu/Dir) pendant qu'un doigt est réellement posé sur la
   // zone, pour ne jamais l'afficher en même temps que le joystick/cercle de tir
-  // dessiné sur le canvas (sinon doublon visuel — cf. retour utilisateur).
+  // dessiné sur le canvas (sinon doublon visuel, cf. retour utilisateur).
   const [fireActive, setFireActive] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [moveActive, setMoveActive] = useState(false);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function App() {
   } = useGame(canvasRef, overlayRef);
 
   // Callback ref : le wrapper des hints tactiles (re)monte à chaque bascule
-  // overlay/menu ou changement de mode de contrôle — il faut le repositionner
+  // overlay/menu ou changement de mode de contrôle, il faut le repositionner
   // immédiatement sur le rectangle du canvas, sans attendre un resize.
   const setOverlayRef = useCallback((node: HTMLDivElement | null) => {
     overlayRef.current = node;
@@ -148,8 +149,10 @@ export default function App() {
           width: '100%',
           maxWidth: LOGICAL_WIDTH,
           display: 'flex',
+          flexWrap: 'wrap',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 8,
           padding: '8px 16px',
           flexShrink: 0,
         }}
@@ -165,10 +168,10 @@ export default function App() {
             letterSpacing: 2,
           }}
         >
-          PANG GENESIS <span style={{ color: 'rgba(120,140,200,0.6)', fontWeight: 'normal' }}>— Hylst</span>
+          PANG GENESIS <span style={{ color: 'rgba(120,140,200,0.6)', fontWeight: 'normal' }}>· Hylst</span>
         </span>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <VolumeSlider label="SFX" value={sfxVol} onChange={handleSfxVol} />
             <VolumeSlider label="MUS" value={musicVol} onChange={handleMusicVol} />
@@ -205,8 +208,55 @@ export default function App() {
           >
             ⛶
           </button>
+
+          <button
+            onClick={() => setShowInfo(true)}
+            title="Comment ce jeu a été fait"
+            style={{
+              background: 'rgba(80,120,255,0.18)',
+              border: '1px solid rgba(100,160,255,0.35)',
+              color: '#c0d8ff',
+              borderRadius: 8,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontFamily: '"Courier New", monospace',
+              cursor: 'pointer',
+            }}
+          >
+            ℹ️
+          </button>
         </div>
       </div>
+
+      {showInfo && (
+        <div
+          onClick={() => setShowInfo(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,10,0.8)', backdropFilter: 'blur(4px)', padding: 16 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', borderRadius: 16, border: '1px solid rgba(100,160,255,0.3)', background: '#0a0e1f', boxShadow: '0 0 40px rgba(80,120,255,0.2)' }}
+          >
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, fontSize: 14, lineHeight: 1.6, color: '#c0d8ff', fontFamily: 'system-ui, sans-serif' }}>
+              <h3 style={{ fontFamily: '"Courier New", monospace', fontWeight: 'bold', color: '#88aaff', fontSize: 20, margin: 0 }}>Comment ce jeu a été fait</h3>
+              <p><strong style={{ color: '#fff' }}>Stack :</strong> React 19, TypeScript 5.9, Vite 7, compilé en un seul fichier HTML, aucune dépendance chargée depuis l'extérieur.</p>
+              <p><strong style={{ color: '#fff' }}>Graphismes :</strong> tout est dessiné en Canvas 2D à chaque image (balles, harpon, décor par thème), aucun sprite ni image externe.</p>
+              <p><strong style={{ color: '#fff' }}>Musique &amp; sons :</strong> synthétisés en direct avec l'API Web Audio, aucun fichier audio chargé.</p>
+              <p><strong style={{ color: '#fff' }}>Interactions :</strong> clavier, souris ou tactile pour se déplacer et tirer le harpon ; maintenir le tir charge un coup plus large et plus puissant.</p>
+              <p><strong style={{ color: '#fff' }}>Architecture :</strong> logique de jeu et rendu répartis en modules dédiés (mise à jour, rendu du décor, des entités, du HUD, des overlays), une seule boucle qui les orchestre à chaque image.</p>
+              <p><strong style={{ color: '#fff' }}>Algorithmes notables :</strong> les balles se divisent en deux plus petites à chaque impact jusqu'à disparaître, certaines sont traqueuses et corrigent leur trajectoire vers le joueur après un rebond. 7 power-ups (tir multiple, ralenti, bouclier, vie bonus, bonus de score, aimant, bombe) et 5 thèmes visuels qui changent le décor par niveau.</p>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(100,160,255,0.2)', padding: 16, textAlign: 'center' }}>
+              <button
+                onClick={() => setShowInfo(false)}
+                style={{ background: 'linear-gradient(90deg, #5078ff, #88aaff)', border: 'none', borderRadius: 10, color: '#04070f', fontWeight: 'bold', padding: '10px 24px', fontSize: 14, cursor: 'pointer' }}
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         style={{

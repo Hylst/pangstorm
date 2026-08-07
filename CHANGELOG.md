@@ -1,10 +1,29 @@
 # Changelog
 
+## [2.1.0] 2026-08-03
+
+### Ajoute
+
+- Bouton Infos dans la barre du haut, ouvrant une modale avec la stack, les graphismes, la
+  musique, les interactions (tir chargé), l'architecture et les algorithmes notables
+  (balles qui se divisent par paliers, balles traqueuses, 7 power-ups, 5 thèmes). Étape 15
+  du chantier de retrofit décrit dans `todo.md` racine du monorepo.
+
+### Corrige
+
+- 4 tirets longs (titre du jeu, commentaires de code, cette entrée de changelog) remplacés
+  par des deux-points, points médians ou virgules, en conformité avec la règle du dépôt.
+
+### Verifie
+
+- Build propre, modale testée à l'ouverture/fermeture, aucune erreur console, aucun 404,
+  aucun débordement horizontal en 390×844.
+
 ## [2.0.0] — 2026-07-29
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Contrôles tactiles overlay transparents** : zones gauche (déplacement par drag) et droite (tir tap/hold) superposées au canvas. 100% invisibles — l'écran de jeu reste intégralement visible.
+- **Contrôles tactiles overlay transparents** : zones gauche (déplacement par drag) et droite (tir tap/hold) superposées au canvas. 100% invisibles, l'écran de jeu reste intégralement visible.
 - **Mouvement fluide par suivi du doigt** : le vaisseau suit exactement la position X du doigt sur la zone gauche. Zone morte configurable.
 - **Tir continu sur zone droite** : tap = 1 tir, hold = auto-feu toutes les 250ms. Charge indépendante (touche Espace).
 - **Menu Pause tactile** 4 boutons (Reprendre, Recommencer niveau, Recommencer complet, Quitter) avec boîte de confirmation OUI/NON (gauche/droite).
