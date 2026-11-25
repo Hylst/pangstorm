@@ -15,3 +15,9 @@ COPILOT.md
 .cursor/
 .windsurf/
 rules.md
+
+# Agents et secrets locaux (garde-fou du 25/11/2026)
+.env
+.env.*
+agents.md
+.claude/
