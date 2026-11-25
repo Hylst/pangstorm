@@ -58,4 +58,6 @@ Voir [`CHANGELOG.md`](CHANGELOG.md) pour l'historique des versions.
 
 ## Licence
 
+
+Code : AGPL-3.0-or-later. Voir `LICENSE`.
 Projet personnel — aucun droit d'auteur sur le nom ou le concept original *Pang*.
