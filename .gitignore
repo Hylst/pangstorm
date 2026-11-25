@@ -21,3 +21,8 @@ rules.md
 .env.*
 agents.md
 .claude/
+
+# Ne pas masquer les modeles partageables
+!.env.example
+!.env.sample
+!.env.template
