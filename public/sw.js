@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pang-genesis-v3';
+const CACHE_NAME = 'pang-genesis-v4';
 const STATIC_ASSETS = [
   'index.html',
   'manifest.json',
