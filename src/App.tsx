@@ -168,7 +168,7 @@ export default function App() {
             letterSpacing: 2,
           }}
         >
-          PANG GENESIS <span style={{ color: 'rgba(120,140,200,0.6)', fontWeight: 'normal' }}>· Hylst</span>
+          PANG GENÈSE <span style={{ color: 'rgba(120,140,200,0.6)', fontWeight: 'normal' }}>· Hylst</span>
         </span>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>

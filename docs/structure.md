@@ -1,4 +1,4 @@
-# Structure du projet — Pang Genesis
+# Structure du projet — Pang Genèse
 
 ## Architecture
 

@@ -1,4 +1,4 @@
-# Pang Genesis ⚡
+# Pang Genèse ⚡
 
 Réinterprétation moderne du classique *Pang* (Ocean, Atari ST).  
 Orbes rebondissantes, grappin, combos, 100 niveaux, synthwave néon.

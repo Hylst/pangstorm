@@ -417,7 +417,7 @@ export function drawOverlay(ctx: CanvasRenderingContext2D, state: GameState, tim
     ctx.fillStyle = '#88aaff';
     ctx.shadowColor = '#4488ff';
     ctx.shadowBlur = 26;
-    ctx.fillText('GENESIS', 0, 40);
+    ctx.fillText('GENÈSE', 0, 40);
     ctx.restore();
 
     ctx.textAlign = 'center';

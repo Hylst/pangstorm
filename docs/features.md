@@ -1,4 +1,4 @@
-# Fonctionnalités — Pang Genesis
+# Fonctionnalités — Pang Genèse
 
 ## Gameplay
 
